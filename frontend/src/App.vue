@@ -242,7 +242,7 @@ onUnmounted(() => clearInterval(timer))
       </p>
     </template>
     <template #footer>
-      <span v-if="modal === 'add'" class="muted">仅建立基线，不清零</span><BaseButton :disabled="busy" @click="modal = ''">
+      <BaseButton :disabled="busy" @click="modal = ''">
         取消
       </BaseButton>
       <BaseButton v-if="modal === 'add'" variant="primary" :loading="busy" :disabled="!keyId || !preview || previewBusy" @click="act('add', { key_id: keyId, account_id: accountId })">
