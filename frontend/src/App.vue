@@ -4,7 +4,7 @@ import { BaseButton, BaseCheckbox, BaseIconButton, BaseModal, BaseSelect, BaseTa
 import { ChevronRight, Plus, RefreshCw } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { command, load } from './api/modules/follow'
-import { displayDate, money, percent } from './display'
+import { displayDate, money, percent, providerTypeLabel, subscriptionLabel, subscriptionStyle } from './display'
 
 const data = ref<Snapshot>()
 const busy = ref(false)
@@ -25,6 +25,8 @@ const rows = computed(() => Object.values(data.value?.state.links || {}))
 const link = computed(() => data.value?.state.links[selected.value])
 const account = (l: Link) => data.value?.accounts.find(a => a.account_id === l.account_id)
 const accountName = (l: Link) => account(l)?.name?.trim() || account(l)?.email || '账号已删除'
+const accountDisplay = (l: Link) => account(l)?.email?.trim() || accountName(l)
+const accountSecondary = (l: Link) => account(l)?.email?.trim() && account(l)?.name?.trim() && account(l)?.email?.trim() !== account(l)?.name?.trim() ? account(l)?.name?.trim() : ''
 const observation = (l: Link) => data.value?.state.accounts[l.account_id]
 const sample = (l: Link) => observation(l)?.sample || l.baseline
 const budget = (l: Link) => data.value?.budgets[l.key_id]
@@ -165,12 +167,23 @@ onUnmounted(() => clearInterval(timer))
           <Plus :size="16" />添加关联
         </BaseButton>
       </div>
-      <table v-else-if="data">
-        <thead><tr><th>Key / 关联账号</th><th>本周用量</th><th>账号使用情况</th><th>账号预计重置</th><th>状态</th><th><span class="sr-only">操作</span></th></tr></thead>
+      <div v-else-if="data" class="table-scroll">
+        <table>
+        <thead><tr><th>密钥名称</th><th>账号</th><th>订阅</th><th>平台/类型</th><th>本周用量</th><th>账号使用情况</th><th>账号预计重置</th><th>状态</th><th><span class="sr-only">操作</span></th></tr></thead>
         <tbody>
           <tr v-for="l in rows" :key="l.key_id">
-            <td class="identity">
-              <strong>{{ keyName(l) }}</strong><small>{{ accountName(l) }}</small>
+            <td class="identity key-identity" data-label="密钥名称">
+              <strong :title="keyName(l)">{{ keyName(l) }}</strong>
+            </td>
+            <td class="identity account-identity" data-label="账号">
+              <strong :title="accountDisplay(l)">{{ accountDisplay(l) }}</strong><small v-if="accountSecondary(l)" :title="accountSecondary(l)">{{ accountSecondary(l) }}</small>
+            </td>
+            <td data-label="订阅">
+              <span v-if="subscriptionLabel(account(l)?.plan_type, account(l)?.authentication_kind) !== '—'" class="subscription-badge" :class="`subscription-${subscriptionStyle(account(l)?.plan_type)}`">{{ subscriptionLabel(account(l)?.plan_type, account(l)?.authentication_kind) }}</span>
+              <span v-else class="muted">—</span>
+            </td>
+            <td data-label="平台/类型">
+              <span class="platform-type" :title="providerTypeLabel(account(l)?.provider_id, account(l)?.authentication_kind)">{{ providerTypeLabel(account(l)?.provider_id, account(l)?.authentication_kind) }}</span>
             </td>
             <td data-label="本周用量" class="numeric">
               <span v-if="budget(l)"><span class="amount">{{ money(budget(l)!.weekly_used_usd) }}</span><span class="limit"> / {{ Number(budget(l)!.weekly_limit_usd) === 0 ? '不限额' : money(budget(l)!.weekly_limit_usd) }}</span></span><span v-else class="muted">无法读取预算</span>
@@ -201,7 +214,8 @@ onUnmounted(() => clearInterval(timer))
             </td>
           </tr>
         </tbody>
-      </table>
+        </table>
+      </div>
   </main>
   <BaseModal v-model="modalOpen" :title="({ add: '添加关联', detail: '关联详情', process: '处理关联', delete: '删除关联' })[modal] || '关联'" :dismissible="!busy" :draggable="false">
     <p v-if="error" role="alert" class="error">
