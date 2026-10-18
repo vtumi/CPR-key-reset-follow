@@ -141,35 +141,35 @@ onUnmounted(() => clearInterval(timer))
 
 <template>
   <main class="panel">
-      <p v-if="error && !modal" role="alert" class="error">
-        {{ error }} <BaseButton size="sm" @click="refresh">
-          重试
-        </BaseButton>
-      </p>
-      <div class="toolbar">
-        <div><span class="count">{{ rows.length }} 个关联</span></div>
-        <div class="tools toolbar-actions">
-          <BaseIconButton label="刷新列表" title="刷新列表" :disabled="busy" @click="refresh">
-            <RefreshCw :size="17" />
-          </BaseIconButton>
-          <div class="inline-early-reset" title="关闭后跳过提前重置且不清零；正常换周仍自动处理">
-            <BaseCheckbox :model-value="data?.state.early_auto ?? true" label="提前重置自动清零" :disabled="busy || !data" @update:model-value="setEarlyAuto" />
-          </div>
-          <BaseButton variant="primary" :disabled="busy || !data" @click="open('add')">
-            <Plus :size="16" />添加关联
-          </BaseButton>
+    <p v-if="error && !modal" role="alert" class="error">
+      {{ error }} <BaseButton size="sm" @click="refresh">
+        重试
+      </BaseButton>
+    </p>
+    <div class="toolbar">
+      <div><span class="count">{{ rows.length }} 个关联</span></div>
+      <div class="tools toolbar-actions">
+        <BaseIconButton label="刷新列表" title="刷新列表" :disabled="busy" @click="refresh">
+          <RefreshCw :size="17" />
+        </BaseIconButton>
+        <div class="inline-early-reset" title="关闭后跳过提前重置且不清零；正常换周仍自动处理">
+          <BaseCheckbox :model-value="data?.state.early_auto ?? true" label="提前重置自动清零" :disabled="busy || !data" @update:model-value="setEarlyAuto" />
         </div>
-      </div>
-      <p v-if="!data && !error" class="empty" role="status">
-        正在加载关联
-      </p>
-      <div v-else-if="data && !rows.length" class="empty">
-        <p>尚未建立关联</p><small>选择 Key 和对应账号，开始跟随周额度重置</small><BaseButton variant="primary" @click="open('add')">
+        <BaseButton variant="primary" :disabled="busy || !data" @click="open('add')">
           <Plus :size="16" />添加关联
         </BaseButton>
       </div>
-      <div v-else-if="data" class="table-scroll">
-        <table>
+    </div>
+    <p v-if="!data && !error" class="empty" role="status">
+      正在加载关联
+    </p>
+    <div v-else-if="data && !rows.length" class="empty">
+      <p>尚未建立关联</p><small>选择 Key 和对应账号，开始跟随周额度重置</small><BaseButton variant="primary" @click="open('add')">
+        <Plus :size="16" />添加关联
+      </BaseButton>
+    </div>
+    <div v-else-if="data" class="table-scroll">
+      <table>
         <thead><tr><th>密钥名称</th><th>账号</th><th>订阅</th><th>平台/类型</th><th>本周用量</th><th>账号使用情况</th><th>账号预计重置</th><th>状态</th><th><span class="sr-only">操作</span></th></tr></thead>
         <tbody>
           <tr v-for="l in rows" :key="l.key_id">
@@ -217,8 +217,8 @@ onUnmounted(() => clearInterval(timer))
             </td>
           </tr>
         </tbody>
-        </table>
-      </div>
+      </table>
+    </div>
   </main>
   <BaseModal v-model="modalOpen" :title="({ add: '添加关联', delete: '删除关联' })[modal] || '关联'" :dismissible="!busy" :draggable="false">
     <p v-if="error" role="alert" class="error">
