@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { it } from 'node:test'
-import { displayDate, money, percent } from '../src/display.ts'
+import { displayDate, money, percent, providerTypeLabel, subscriptionLabel, subscriptionStyle } from '../src/display.ts'
 
 it('日期跟随浏览器时区，跨日与夏令时自动适配', () => {
   const value = Date.parse('2026-10-03T02:10:00Z')
@@ -30,4 +30,17 @@ it('金额和账号用量区分空值与零，并控制展示精度', () => {
   assert.equal(percent(null), '暂无数据')
   assert.equal(percent(0), '0%')
   assert.equal(percent(45.123), '45.1%')
+})
+
+it('订阅与平台类型来自真实账号字段，不推测缺失数据', () => {
+  assert.equal(subscriptionLabel('plus', 'oauth'), 'Plus')
+  assert.equal(subscriptionLabel('pro', 'oauth'), 'Pro')
+  assert.equal(subscriptionLabel('custom-tier', 'oauth'), 'custom-tier')
+  assert.equal(subscriptionLabel(null, 'oauth'), '—')
+  assert.equal(subscriptionLabel(null, 'api_key'), 'API')
+  assert.equal(subscriptionStyle('plus'), 'plus')
+  assert.equal(subscriptionStyle('unknown'), 'other')
+  assert.equal(providerTypeLabel('openai', 'oauth'), 'OpenAI / OAuth')
+  assert.equal(providerTypeLabel('xai', 'api_key'), 'xAI / API Key')
+  assert.equal(providerTypeLabel(undefined, undefined), '— / —')
 })
