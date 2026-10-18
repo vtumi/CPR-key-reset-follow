@@ -149,6 +149,7 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
             json!({
                 "account_id": a.account_id, "name": a.name, "email": a.email,
                 "provider_id": a.provider_id, "authentication_kind": a.authentication_kind,
+                "plan_type": a.plan_type,
             })
         }));
         cursor = page.next_cursor;
