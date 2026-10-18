@@ -22,7 +22,7 @@ th:first-child { border-radius: 7px 0 0 7px; } th:last-child { border-radius: 0 
 .usage-identity-primary { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--cp-font-mono, ui-monospace, monospace); font-size: 14px; font-weight: 700; line-height: 1; color: var(--cp-color-text); }
 .identity strong { font-weight: 600; } .numeric { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .amount { font-weight: 600; } .reset-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.row-actions { width: 210px; min-width: 210px; padding-right: 0; } .row-actions .tools { justify-content: flex-end; gap: 6px; }
+.row-actions { width: 112px; min-width: 112px; padding-right: 0; } .row-actions .tools { justify-content: flex-end; gap: 6px; }
 .status { gap: 7px; white-space: nowrap; }
 .error { color: var(--cp-color-error-text); padding: 8px 0; overflow-wrap: anywhere; }
 .empty { padding: 72px 0; text-align: center; color: var(--cp-color-text-secondary); }
