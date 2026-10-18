@@ -4,7 +4,8 @@ import { BaseButton, BaseCheckbox, BaseIconButton, BaseModal, BaseSelect, BaseTa
 import { ChevronRight, Plus, RefreshCw } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { command, load } from './api/modules/follow'
-import { displayDate, money, percent, providerTypeLabel, subscriptionLabel, subscriptionStyle } from './display'
+import { displayDate, money, percent, subscriptionLabel, subscriptionStyle } from './display'
+import ProviderIconGroup from './components/ProviderIconGroup.vue'
 
 const data = ref<Snapshot>()
 const busy = ref(false)
@@ -183,7 +184,7 @@ onUnmounted(() => clearInterval(timer))
               <span v-else class="muted">—</span>
             </td>
             <td data-label="平台/类型">
-              <span class="platform-type" :title="providerTypeLabel(account(l)?.provider_id, account(l)?.authentication_kind)">{{ providerTypeLabel(account(l)?.provider_id, account(l)?.authentication_kind) }}</span>
+              <ProviderIconGroup :provider="account(l)?.provider_id" :authentication-kind="account(l)?.authentication_kind" />
             </td>
             <td data-label="本周用量" class="numeric">
               <span v-if="budget(l)"><span class="amount">{{ money(budget(l)!.weekly_used_usd) }}</span><span class="limit"> / {{ Number(budget(l)!.weekly_limit_usd) === 0 ? '不限额' : money(budget(l)!.weekly_limit_usd) }}</span></span><span v-else class="muted">无法读取预算</span>
