@@ -161,9 +161,8 @@ onUnmounted(() => clearInterval(timer))
       正在加载关联
     </p>
     <div v-else-if="data && !rows.length" class="empty">
-      <p>尚未建立关联</p><small>选择密钥和账号，开始跟随重置</small><BaseButton variant="primary" @click="open('add')">
-        <Plus :size="16" />添加关联
-      </BaseButton>
+      <p>尚未建立关联</p>
+      <small>选择密钥和账号，开始跟随重置</small>
     </div>
     <div v-else-if="data" class="table-scroll">
       <table>
