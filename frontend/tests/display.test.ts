@@ -1,5 +1,5 @@
-import process from 'node:process'
 import assert from 'node:assert/strict'
+import process from 'node:process'
 import { it } from 'node:test'
 import { displayDate, money, percent, subscriptionLabel } from '../src/display.ts'
 
@@ -39,5 +39,4 @@ it('订阅与平台类型来自真实账号字段，不推测缺失数据', () =
   assert.equal(subscriptionLabel('custom-tier', 'oauth'), 'custom-tier')
   assert.equal(subscriptionLabel(null, 'oauth'), '—')
   assert.equal(subscriptionLabel(null, 'api_key'), 'API')
-
 })
