@@ -186,44 +186,6 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
         json!({"version": engine.version, "state": engine.state, "keys": keys, "accounts": accounts, "budgets": budgets}),
     )
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use key_reset_follow::{
-        cycle::Sample,
-        model::{Link, Phase},
-    };
-
-    #[test]
-    fn association_target_stays_bound_to_original_account() {
-        let mut state = State::default();
-        state.links.insert(
-            "key-1".into(),
-            Link {
-                key_id: "key-1".into(),
-                account_id: "account-a".into(),
-                baseline: Sample {
-                    observed: 1,
-                    reset: 2,
-                    used: None,
-                },
-                paused: false,
-                pending: None,
-                events: Default::default(),
-                retry_at: 0,
-                phase: Phase::Tracking,
-            },
-        );
-        assert!(ensure_current_link(&state, "key-1", Some("account-a")).is_ok());
-        assert!(ensure_current_link(&state, "key-1", Some("account-b")).is_err());
-        assert!(ensure_current_link(&state, "key-1", None).is_err());
-        assert!(ensure_current_link(&state, "missing", Some("account-a")).is_err());
-        // 后台调整观测时间不改变关联身份，不应阻止操作。
-        state.links.get_mut("key-1").unwrap().baseline.observed += 1;
-        assert!(ensure_current_link(&state, "key-1", Some("account-a")).is_ok());
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let lock = Arc::new(Mutex::new(()));
@@ -284,3 +246,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use key_reset_follow::{
+        cycle::Sample,
+        model::{Link, Phase},
+    };
+
+    #[test]
+    fn association_target_stays_bound_to_original_account() {
+        let mut state = State::default();
+        state.links.insert(
+            "key-1".into(),
+            Link {
+                key_id: "key-1".into(),
+                account_id: "account-a".into(),
+                baseline: Sample {
+                    observed: 1,
+                    reset: 2,
+                    used: None,
+                },
+                paused: false,
+                pending: None,
+                events: Default::default(),
+                retry_at: 0,
+                phase: Phase::Tracking,
+            },
+        );
+        assert!(ensure_current_link(&state, "key-1", Some("account-a")).is_ok());
+        assert!(ensure_current_link(&state, "key-1", Some("account-b")).is_err());
+        assert!(ensure_current_link(&state, "key-1", None).is_err());
+        assert!(ensure_current_link(&state, "missing", Some("account-a")).is_err());
+        // 后台调整观测时间不改变关联身份，不应阻止操作。
+        state.links.get_mut("key-1").unwrap().baseline.observed += 1;
+        assert!(ensure_current_link(&state, "key-1", Some("account-a")).is_ok());
+    }
+}
+
