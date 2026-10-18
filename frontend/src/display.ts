@@ -1,14 +1,8 @@
-export type DisplayTimezone = 'browser' | 'Asia/Shanghai' | 'UTC'
-
-export function resolveTimezone(selection: DisplayTimezone): string {
-  return selection === 'browser' ? new Intl.DateTimeFormat().resolvedOptions().timeZone : selection
-}
-
-export function displayDate(value: number | null | undefined, timezone: string, full = false): string {
+export function displayDate(value: number | null | undefined, full = false): string {
   if (value == null)
     return '暂无时间'
+  // 与主项目一致，使用当前浏览器的系统时区，不维护插件私有时区配置。
   const formatted = new Intl.DateTimeFormat('zh-CN', {
-    timeZone: timezone,
     ...(full ? { year: 'numeric' } as const : {}),
     month: '2-digit',
     day: '2-digit',
@@ -16,21 +10,15 @@ export function displayDate(value: number | null | undefined, timezone: string, 
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(value)
-  return full ? `${formatted}（${timezoneOffset(timezone, value)}）` : formatted
+  return full ? `${formatted}（${timezoneOffset(value)}）` : formatted
 }
 
-function timezoneOffset(timezone: string, value: number): string {
-  return new Intl.DateTimeFormat('en', { timeZone: timezone, timeZoneName: 'shortOffset' })
+function timezoneOffset(value: number): string {
+  return new Intl.DateTimeFormat('en', { timeZoneName: 'shortOffset' })
     .formatToParts(value)
     .find(part => part.type === 'timeZoneName')!
     .value
     .replace('GMT', 'UTC')
-}
-
-export function timezoneLabel(timezone: string, value = Date.now()): string {
-  const offset = timezoneOffset(timezone, value)
-  const name = timezone === 'Asia/Shanghai' ? '北京时间' : timezone === 'UTC' ? '协调世界时' : timezone
-  return `${name}（${offset}）`
 }
 
 export function money(value: string | undefined): string {
