@@ -440,8 +440,7 @@ async fn prolonged_outage_discards_queued_cycle_before_any_reset() {
 }
 
 #[tokio::test]
-async fn beta_state_and_pending_reset_survive_display_settings() {
-    use key_reset_follow::model::DisplayTimezone;
+async fn early_auto_toggle_preserves_pending_reset_state() {
     let h = Fake::new();
     setup(&h).await;
     next(&h);
@@ -452,20 +451,16 @@ async fn beta_state_and_pending_reset_survive_display_settings() {
         .check("account-a", WEEK + 1000)
         .await
         .unwrap();
-    let mut old = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
-    old.as_object_mut().unwrap().remove("display_timezone");
-    let recovered: State = serde_json::from_value(old.clone()).unwrap();
-    assert_eq!(recovered.display_timezone, DisplayTimezone::Browser);
-    h.0.lock().unwrap().state = recovered;
-    let mut e = Engine::load(&h).await.unwrap();
-    e.state.display_timezone = DisplayTimezone::Shanghai;
-    e.state.early_auto = false;
-    e.save().await.unwrap();
+    let before = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
+    let mut engine = Engine::load(&h).await.unwrap();
+    engine.state.early_auto = false;
+    engine.save().await.unwrap();
     let after = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
-    assert_eq!(after["links"], old["links"]);
-    assert_eq!(after["accounts"], old["accounts"]);
+    assert_eq!(after["links"], before["links"]);
+    assert_eq!(after["accounts"], before["accounts"]);
+    assert_eq!(after["early_auto"], false);
+    assert!(after.get("display_timezone").is_none());
     assert_eq!(h.0.lock().unwrap().resets.len(), 2);
-    assert!(serde_json::from_value::<DisplayTimezone>(serde_json::json!("unsupported")).is_err());
 }
 
 #[tokio::test]
