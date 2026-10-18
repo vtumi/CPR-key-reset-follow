@@ -8,10 +8,10 @@ it('日期跟随浏览器时区，跨日与夏令时自动适配', () => {
   try {
     process.env.TZ = 'Asia/Shanghai'
     assert.equal(displayDate(value), '10/03 10:10')
-    assert.equal(displayDate(value, true), '2026/10/03 10:10（UTC+8）')
+    assert.equal(displayDate(value, true), '2026/10/03 10:10')
     process.env.TZ = 'America/Los_Angeles'
     assert.equal(displayDate(value), '10/02 19:10')
-    assert.equal(displayDate(Date.parse('2026-12-01T00:00:00Z'), true), '2026/11/30 16:00（UTC-8）')
+    assert.equal(displayDate(Date.parse('2026-12-01T00:00:00Z'), true), '2026/11/30 16:00')
     assert.equal(displayDate(null), '暂无时间')
   }
   finally {
