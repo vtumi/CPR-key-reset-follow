@@ -10,7 +10,7 @@ body { margin: 0; } #app { min-height: inherit; } * { box-sizing: border-box; }
 .muted, small, th, dt, .limit { color: var(--cp-color-text-secondary); }
 small { display: block; margin-top: 5px; font-size: 12px; line-height: 1.5; }
 .table-scroll { width: 100%; overflow-x: auto; }
-table { width: 100%; min-width: 1080px; border-collapse: collapse; }
+table { width: 100%; min-width: 1180px; border-collapse: collapse; }
 th { font-weight: 500; text-align: left; font-size: 12px; white-space: nowrap; padding: 12px 14px; background: var(--cp-color-bg-layout); }
 td { padding: 23px 14px; border-bottom: 1px solid var(--cp-color-border-secondary); vertical-align: middle; }
 tbody tr:last-child td { border-bottom: 0; }
@@ -24,7 +24,7 @@ th:first-child { border-radius: 7px 0 0 7px; } th:last-child { border-radius: 0 
 .usage-identity-secondary { display: block; max-width: 100%; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--cp-color-text-tertiary, var(--cp-color-text-secondary)); }
 .identity strong { font-weight: 600; } .numeric { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .amount { font-weight: 600; } .reset-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.row-actions { width: 80px; padding-right: 0; } .row-actions .tools { justify-content: flex-end; gap: 2px; }
+.row-actions { width: 210px; min-width: 210px; padding-right: 0; } .row-actions .tools { justify-content: flex-end; gap: 6px; }
 .status { gap: 7px; white-space: nowrap; }
 .banner { background: var(--cp-color-warning-container); color: var(--cp-color-warning-text); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; justify-content: space-between; }
 .error { color: var(--cp-color-error-text); padding: 8px 0; overflow-wrap: anywhere; }
@@ -49,6 +49,8 @@ dl { display: grid; grid-template-columns: minmax(100px, 1fr) 2fr; gap: 12px 20p
   td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
   td[data-label]::before { content: attr(data-label); color: var(--cp-color-text-secondary); font-size: 12px; flex-shrink: 0; } .identity .usage-identity-primary { text-align: right; } .account-identity { flex-wrap: wrap; } .account-identity small { flex-basis: 100%; text-align: right; }
   .numeric .limit { display: inline; font-size: inherit; } .reset-time { flex-wrap: wrap; } .reset-time small { width: 100%; text-align: right; }
-  .row-actions { position: absolute; right: 0; top: 15px; width: auto; }
+  .row-actions { position: static; width: auto; min-width: 0; margin-top: 8px; }
+  .row-actions .tools { justify-content: flex-end; }
+  td.row-actions::before { align-self: center; }
   h2 { font-size: 19px; } dl { grid-template-columns: 1fr; gap: 6px; } dd { margin-bottom: 10px; }
 }
