@@ -380,7 +380,12 @@ async fn early_auto_is_enabled_by_default_and_unknown_retry_requires_acknowledge
         .unwrap();
     assert_eq!(h.0.lock().unwrap().resets.len(), 2);
     // 取消人工重试入口后，结果未知仍不得被重复执行。
-    Engine::load(&h).await.unwrap().drain(2000000).await.unwrap();
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .drain(2000000)
+        .await
+        .unwrap();
     assert_eq!(h.0.lock().unwrap().resets.len(), 2);
 }
 
@@ -695,12 +700,35 @@ async fn unknown_reset_cannot_be_cleared_by_pause_and_resume() {
     setup(&h).await;
     next(&h);
     h.0.lock().unwrap().lost_response = Some("key-a".into());
-    Engine::load(&h).await.unwrap().check("account-a", WEEK + 1000).await.unwrap();
-    assert!(matches!(h.0.lock().unwrap().state.links["key-a"].pending, Some(Pending::Unknown { .. })));
-    Engine::load(&h).await.unwrap().action("key-a", "pause", false, WEEK + 2000).await.unwrap();
-    assert!(Engine::load(&h).await.unwrap().action("key-a", "resume", false, WEEK + 3000).await.is_err());
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .check("account-a", WEEK + 1000)
+        .await
+        .unwrap();
+    assert!(matches!(
+        h.0.lock().unwrap().state.links["key-a"].pending,
+        Some(Pending::Unknown { .. })
+    ));
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .action("key-a", "pause", false, WEEK + 2000)
+        .await
+        .unwrap();
+    assert!(
+        Engine::load(&h)
+            .await
+            .unwrap()
+            .action("key-a", "resume", false, WEEK + 3000)
+            .await
+            .is_err()
+    );
     let s = h.0.lock().unwrap();
     assert!(s.state.links["key-a"].paused);
-    assert!(matches!(s.state.links["key-a"].pending, Some(Pending::Unknown { .. })));
+    assert!(matches!(
+        s.state.links["key-a"].pending,
+        Some(Pending::Unknown { .. })
+    ));
     assert_eq!(s.resets.len(), 2);
 }
