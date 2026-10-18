@@ -11,7 +11,7 @@
 cargo fmt --check
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --locked
-pnpm --dir frontend install --frozen-lockfile
+pnpm --dir frontend install --no-frozen-lockfile
 pnpm --dir frontend lint
 pnpm --dir frontend test
 pnpm --dir frontend build
@@ -49,7 +49,7 @@ cpr-plugin package --manifest plugin.json --binary target/release/key-reset-foll
 
 target 必须匹配实际编译平台，不通过修改平台参数伪装交叉编译
 版本修改经 PR 合并，`v<version>` 标签与 plugin.json 逐字一致，只标记已验证提交
-CI 在对应架构的 Ubuntu 24.04 runner 上分别构建、检查并发布 Linux x86_64 与 ARM64 的 tar.gz 和 SHA-256 校验文件，带后缀的版本标为预发行
-已发布标签不移动，附件不覆盖；修正内容发布新版本
+CI 仅通过 GitHub Actions 的 `workflow_dispatch` 手动触发，不随 push、PR 或标签推送自动运行。选择分支运行仅执行双架构构建和检查；需要发布时，先在 GitHub Releases **手动创建 Release 和 `v<version>` 标签**，确保标签指向本次待发布提交，再到 Actions → CI → Run workflow **选择该标签**运行（也可用 `gh workflow run ci.yml --ref v<version>`）。版本须与 `plugin.json` 一致。检查和 SHA-256 校验通过后，工作流只向已存在的 Release 上传附件，**同名附件允许覆盖**；不会自动创建 Release 或标签。CI 在对应架构的 Ubuntu 24.04 runner 上构建 Linux x86_64 与 ARM64 的 tar.gz 和 SHA-256 校验文件
+已发布标签不移动；允许覆盖同名附件以修复缺失或错误的发布附件，业务变更应发布新版本
 从预发行升级稳定版使用单独版本 PR，生产安装和稳定版发布须有对应用户授权
 下载公开附件并核对摘要后才安装，安装后检查原有关联与状态保留

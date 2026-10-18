@@ -48,10 +48,6 @@ export function money(value: string | undefined): string {
   return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-export function percent(value: number | null | undefined): string {
-  return value == null ? '暂无数据' : `${new Intl.NumberFormat('zh-CN', { maximumFractionDigits: 1 }).format(value)}%`
-}
-
 export function expectedKeyReset(link: Link, now = Date.now()): number | null {
   if (link.paused || link.pending || !Number.isFinite(link.baseline.reset) || link.baseline.reset <= now)
     return null

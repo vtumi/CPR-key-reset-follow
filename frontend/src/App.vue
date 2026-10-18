@@ -86,15 +86,14 @@ function open(kind: string, l?: Link) {
     previewError.value = ''
   }
 }
-async function act(action: string, extra: object = {}, close = true) {
+async function act(action: string, extra: object = {}) {
   if (busy.value)
     return
   busy.value = true
   error.value = ''
   try {
-    await command({ action, key_id: selected.value, ...(action === 'check' || action === 'pause' || action === 'resume' || action === 'delete' ? { account_id: data.value?.state.links[selected.value]?.account_id } : {}), ...extra })
-    if (close)
-      modal.value = ''
+    await command({ action, key_id: selected.value, ...(action === 'pause' || action === 'resume' || action === 'delete' ? { account_id: data.value?.state.links[selected.value]?.account_id } : {}), ...extra })
+    modal.value = ''
     await refresh()
   }
   catch (e) { error.value = (e as Error).message }

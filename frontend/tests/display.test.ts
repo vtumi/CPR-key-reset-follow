@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import process from 'node:process'
 import { it } from 'node:test'
-import { displayDate, displayResetDate, expectedKeyReset, money, percent, subscriptionLabel } from '../src/display.ts'
+import { displayDate, displayResetDate, expectedKeyReset, money, subscriptionLabel } from '../src/display.ts'
 
 it('日期跟随浏览器时区，跨日与夏令时自动适配', () => {
   const value = Date.parse('2026-10-03T02:10:00Z')
@@ -41,14 +41,11 @@ it('重置时间包含本地年月日时分秒', () => {
   }
 })
 
-it('金额和账号用量区分空值与零，并控制展示精度', () => {
+it('金额区分空值与零，并控制展示精度', () => {
   assert.equal(money('66.08130564'), '$66.08')
   assert.equal(money('239.8797087727'), '$239.88')
   assert.equal(money('0'), '$0.00')
   assert.equal(money(undefined), '暂无数据')
-  assert.equal(percent(null), '暂无数据')
-  assert.equal(percent(0), '0%')
-  assert.equal(percent(45.123), '45.1%')
 })
 
 it('订阅与平台类型来自真实账号字段，不推测缺失数据', () => {

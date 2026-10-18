@@ -2,8 +2,8 @@
   "manifestVersion": 2,
   "publisher": "ming321",
   "name": "key-reset-follow",
-  "displayName": "额度跟随重置",
-  "version": "0.1.3-beta.1",
+  "displayName": "跟随重置",
+  "version": "0.1.3",
   "description": "密钥额度跟随账号重置",
   "license": "Apache-2.0",
   "engines": {
@@ -15,7 +15,9 @@
     "management": {
       "version": 2
     },
-    "maintenance": {}
+    "maintenance": {
+      "version": 1
+    }
   },
   "resources": {
     "web/index.html": "text/html",

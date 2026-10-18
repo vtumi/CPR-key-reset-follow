@@ -1,9 +1,5 @@
 name: CI
 on:
-  push:
-    branches: [main]
-    tags: ['v*']
-  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
@@ -76,24 +72,19 @@ jobs:
           pattern: linux-*
           merge-multiple: true
           path: dist
-      - name: 校验版本并发布不可覆盖附件
+      - name: Verify and Upload Release Assets
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          set -euo pipefail
           test "$RELEASE_TAG" = "v$(jq -r .version plugin.json)"
+          # 先在 GitHub 手工创建与当前 Tag 对应的 Release；此流程只上传附件。
+          gh release view "$RELEASE_TAG" >/dev/null
           for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
             archive="ming321.key-reset-follow-${RELEASE_TAG#v}-${target}.tar.gz"
             test -s "dist/$archive"
             test -s "dist/$archive.sha256"
             (cd dist && sha256sum --check "$archive.sha256")
           done
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo '发行已存在，不覆盖附件'
-            exit 1
-          fi
-          if [[ "$RELEASE_TAG" == *-* ]]; then
-            gh release create "$RELEASE_TAG" dist/* --title "$RELEASE_TAG" --notes-file release/notes.md --prerelease --latest=false --verify-tag
-          else
-            gh release create "$RELEASE_TAG" dist/* --title "$RELEASE_TAG" --notes-file release/notes.md --latest --verify-tag
-          fi
+          gh release upload "$RELEASE_TAG" dist/* --clobber

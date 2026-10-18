@@ -50,8 +50,11 @@ fn exact_window_identity_is_required() {
 }
 #[test]
 fn manifest_matches_target_contract() {
-    let manifest =
-        gateway_plugin_sdk::Manifest::from_author_slice(include_bytes!("../plugin.json")).unwrap();
+    let manifest_bytes = include_bytes!("../plugin.json");
+    let manifest = gateway_plugin_sdk::Manifest::from_author_slice(manifest_bytes).unwrap();
+    let raw: serde_json::Value = serde_json::from_slice(manifest_bytes).unwrap();
+    assert_eq!(raw["contributes"]["management"]["version"], 2);
+    assert_eq!(raw["contributes"]["maintenance"]["version"], 1);
     for (host, allowed) in [
         ("3.18.3", false),
         ("3.29.0", false),

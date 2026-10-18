@@ -93,7 +93,7 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
         let key = cmd.key_id.as_deref().unwrap_or("");
         if matches!(
             cmd.action.as_str(),
-            "check" | "pause" | "resume" | "delete" | "early_auto"
+            "pause" | "resume" | "delete" | "early_auto"
         ) {
             ensure_current_link(&engine.state, key, cmd.account_id.as_deref())?;
         }
@@ -117,16 +117,6 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
             "early_auto" => {
                 let enabled = cmd.enabled.ok_or_else(|| fault("缺少开关值"))?;
                 engine.set_early_auto(key, enabled).await?;
-            }
-            "check" => {
-                let account = engine
-                    .state
-                    .links
-                    .get(key)
-                    .ok_or_else(|| fault("关联不存在"))?
-                    .account_id
-                    .clone();
-                engine.check(&account, now()).await?;
             }
             action => engine.action(key, action, cmd.acknowledge, now()).await?,
         }
@@ -179,12 +169,65 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
     let mut budgets = serde_json::Map::new();
     for key in &keys {
         if let Ok(budget) = host.budget(&key.id).await {
-            budgets.insert(key.id.clone(), json!(budget));
+            budgets.insert(
+                key.id.clone(),
+                json!({
+                    "weekly_limit_usd": budget.weekly_limit_usd,
+                    "weekly_used_usd": budget.weekly_used_usd,
+                }),
+            );
         }
     }
-    Ok(
-        json!({"version": engine.version, "state": engine.state, "keys": keys, "accounts": accounts, "budgets": budgets}),
-    )
+    // 管理页面只接收展示和操作所需的字段；周期、事件和未知清零记录保留在持久状态中。
+    let links: serde_json::Map<String, Value> = engine
+        .state
+        .links
+        .iter()
+        .map(|(id, link)| {
+            let pending = link.pending.as_ref().map(|pending| match pending {
+                key_reset_follow::model::Pending::Changed { .. } => "changed",
+                key_reset_follow::model::Pending::Confirm { .. } => "confirm",
+                key_reset_follow::model::Pending::Ready { .. } => "ready",
+                key_reset_follow::model::Pending::Unknown { .. } => "unknown",
+            });
+            (
+                id.clone(),
+                json!({
+                    "key_id": link.key_id,
+                    "account_id": link.account_id,
+                    "baseline": { "reset": link.baseline.reset },
+                    "paused": link.paused,
+                    "early_auto": link.early_auto,
+                    "pending": pending.map(|kind| json!({ "kind": kind })),
+                }),
+            )
+        })
+        .collect();
+    let observations: serde_json::Map<String, Value> = engine
+        .state
+        .accounts
+        .iter()
+        .map(|(id, account)| {
+            (
+                id.clone(),
+                json!({ "failure_since": account.failure_since }),
+            )
+        })
+        .collect();
+    let keys: Vec<Value> = keys
+        .iter()
+        .map(|key| json!({ "id": key.id, "name": key.name }))
+        .collect();
+    Ok(json!({
+        "state": {
+            "early_auto": engine.state.early_auto,
+            "links": links,
+            "accounts": observations,
+        },
+        "keys": keys,
+        "accounts": accounts,
+        "budgets": budgets,
+    }))
 }
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
