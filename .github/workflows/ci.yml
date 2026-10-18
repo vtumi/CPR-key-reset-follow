@@ -1,9 +1,10 @@
 name: CI
 on:
   push:
-    branches: [main, 'codex/**']
+    branches: [main]
     tags: ['v*']
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -30,12 +31,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Refresh SDK dependency lockfile
-        run: cargo generate-lockfile
-      - uses: actions/upload-artifact@v4
-        with:
-          name: refreshed-lock-${{ matrix.artifact }}
-          path: Cargo.lock
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
