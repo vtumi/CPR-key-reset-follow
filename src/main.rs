@@ -32,7 +32,6 @@ struct Command {
     account_id: Option<String>,
     version: Option<u64>,
     enabled: Option<bool>,
-    display_timezone: Option<key_reset_follow::model::DisplayTimezone>,
     #[serde(default)]
     acknowledge: bool,
 }
@@ -96,11 +95,8 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
                     )
                     .await?
             }
-            "settings" => {
+            "early_auto" => {
                 engine.state.early_auto = cmd.enabled.ok_or_else(|| fault("缺少开关值"))?;
-                if let Some(timezone) = cmd.display_timezone {
-                    engine.state.display_timezone = timezone;
-                }
                 engine.save().await?;
             }
             "check" => {
