@@ -49,7 +49,7 @@ async function setEarlyAuto(enabled: boolean) {
   error.value = ''
   let committed = false
   try {
-    await command({ action: 'early_auto', version: data.value.version, enabled })
+    await command({ action: 'early_auto', enabled })
     committed = true
     // 写入成功即更新勾选状态；后续 GET 失败时不错误回退为旧值。
     data.value.state.early_auto = enabled
@@ -90,7 +90,7 @@ async function act(action: string, extra: object = {}, close = true) {
   busy.value = true
   error.value = ''
   try {
-    await command({ action, key_id: selected.value, version: data.value?.version, ...extra })
+    await command({ action, key_id: selected.value, ...(action === 'check' || action === 'pause' || action === 'resume' || action === 'delete' ? { account_id: data.value?.state.links[selected.value]?.account_id } : {}), ...extra })
     if (close)
       modal.value = ''
     await refresh()
