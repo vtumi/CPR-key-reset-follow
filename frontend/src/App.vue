@@ -149,8 +149,8 @@ onUnmounted(() => clearInterval(timer))
         <BaseIconButton label="刷新列表" title="刷新列表" :disabled="busy" @click="refresh">
           <RefreshCw :size="17" />
         </BaseIconButton>
-        <div class="inline-early-reset">
-          <BaseSwitch :model-value="data?.state.early_auto ?? true" label="提前重置" show-label :disabled="busy || !data" @update:model-value="setEarlyAuto" />
+        <div class="inline-early-reset" title="提前重置：开启时自动清零，关闭时仅更新周期基线">
+          <BaseSwitch :model-value="data?.state.early_auto ?? true" label="提前重置" :disabled="busy || !data" @update:model-value="setEarlyAuto" />
         </div>
         <BaseButton variant="primary" :disabled="busy || !data" @click="open('add')">
           <Plus :size="16" />添加关联
