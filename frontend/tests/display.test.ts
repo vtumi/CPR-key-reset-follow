@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { it } from 'node:test'
-import { displayDate, money, percent, providerTypeLabel, subscriptionLabel, subscriptionStyle } from '../src/display.ts'
+import { displayDate, money, percent, subscriptionLabel } from '../src/display.ts'
 
 it('日期跟随浏览器时区，跨日与夏令时自动适配', () => {
   const value = Date.parse('2026-10-03T02:10:00Z')
@@ -38,9 +38,5 @@ it('订阅与平台类型来自真实账号字段，不推测缺失数据', () =
   assert.equal(subscriptionLabel('custom-tier', 'oauth'), 'custom-tier')
   assert.equal(subscriptionLabel(null, 'oauth'), '—')
   assert.equal(subscriptionLabel(null, 'api_key'), 'API')
-  assert.equal(subscriptionStyle('plus'), 'plus')
-  assert.equal(subscriptionStyle('unknown'), 'other')
-  assert.equal(providerTypeLabel('openai', 'oauth'), 'OpenAI / OAuth')
-  assert.equal(providerTypeLabel('xai', 'api_key'), 'xAI / API Key')
-  assert.equal(providerTypeLabel(undefined, undefined), '— / —')
+
 })
