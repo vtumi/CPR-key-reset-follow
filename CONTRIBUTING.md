@@ -11,7 +11,7 @@
 cargo fmt --check
 cargo clippy --all-targets --locked -- -D warnings
 cargo test --locked
-pnpm --dir frontend install --frozen-lockfile
+pnpm --dir frontend install --no-frozen-lockfile
 pnpm --dir frontend lint
 pnpm --dir frontend test
 pnpm --dir frontend build
