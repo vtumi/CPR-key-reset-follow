@@ -379,14 +379,8 @@ async fn early_auto_is_enabled_by_default_and_unknown_retry_requires_acknowledge
         .await
         .unwrap();
     assert_eq!(h.0.lock().unwrap().resets.len(), 2);
-    assert!(
-        Engine::load(&h)
-            .await
-            .unwrap()
-            .action("key-a", "retry", false, 2000000)
-            .await
-            .is_err()
-    );
+    // 取消人工重试入口后，结果未知仍不得被重复执行。
+    Engine::load(&h).await.unwrap().drain(2000000).await.unwrap();
     assert_eq!(h.0.lock().unwrap().resets.len(), 2);
 }
 
