@@ -30,7 +30,7 @@ const accountDisplay = (l: Link) => account(l)?.email?.trim() || account(l)?.acc
 const observation = (l: Link) => data.value?.state.accounts[l.account_id]
 const sample = (l: Link) => observation(l)?.sample || l.baseline
 const budget = (l: Link) => data.value?.budgets[l.key_id]
-const keyName = (l: Link) => data.value?.keys.find(k => k.id === l.key_id)?.name || 'Key 已删除'
+const keyName = (l: Link) => data.value?.keys.find(k => k.id === l.key_id)?.name || '密钥已删除'
 const date = (value: number | null | undefined, full = false) => displayDate(value, full)
 function status(l: Link): '正常' | '异常' | '禁用' {
   if (l.paused)
@@ -98,7 +98,7 @@ async function act(action: string, extra: object = {}, close = true) {
   catch (e) { error.value = (e as Error).message }
   finally { busy.value = false }
 }
-// 行内启用/禁用仅影响插件关联监测，不改变宿主 Key 的启用状态。
+// 行内启用/禁用仅影响插件关联监测，不改变宿主密钥的启用状态。
 async function toggleLink(l: Link) {
   selected.value = l.key_id
   await act(l.paused ? 'resume' : 'pause')
@@ -161,7 +161,7 @@ onUnmounted(() => clearInterval(timer))
       正在加载关联
     </p>
     <div v-else-if="data && !rows.length" class="empty">
-      <p>尚未建立关联</p><small>选择 Key 和对应账号，开始跟随周额度重置</small><BaseButton variant="primary" @click="open('add')">
+      <p>尚未建立关联</p><small>选择密钥和对应账号，开始跟随周额度重置</small><BaseButton variant="primary" @click="open('add')">
         <Plus :size="16" />添加关联
       </BaseButton>
     </div>
@@ -223,9 +223,9 @@ onUnmounted(() => clearInterval(timer))
       {{ error }}
     </p>
     <template v-if="modal === 'add'">
-      <label class="field">Key<BaseSelect v-model="keyId" :options="keys" filterable placeholder="选择现有 Key" :disabled="busy" /></label>
+      <label class="field">密钥<BaseSelect v-model="keyId" :options="keys" filterable placeholder="选择现有密钥" :disabled="busy" /></label>
       <p v-if="keyId && Number(data?.budgets[keyId]?.weekly_limit_usd) === 0" class="muted">
-        该 Key 未设周限额，清零无实际作用
+        该密钥未设周限额，清零无实际作用
       </p>
       <label class="field">额度来源账号<BaseSelect v-model="accountId" :options="accounts" filterable placeholder="选择账号名称或邮箱" :disabled="busy" /></label>
       <p v-if="previewBusy" role="status">
@@ -238,7 +238,7 @@ onUnmounted(() => clearInterval(timer))
     </template>
     <template v-else-if="modal === 'delete'">
       <p>
-        确定删除“{{ link ? keyName(link) : '此 Key' }}”的关联吗？
+        确定删除“{{ link ? keyName(link) : '此密钥' }}”的关联吗？
       </p>
     </template>
     <template #footer>
