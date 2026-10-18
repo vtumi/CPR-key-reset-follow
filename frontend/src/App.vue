@@ -34,15 +34,14 @@ const sample = (l: Link) => observation(l)?.sample || l.baseline
 const budget = (l: Link) => data.value?.budgets[l.key_id]
 const keyName = (l: Link) => data.value?.keys.find(k => k.id === l.key_id)?.name || 'Key 已删除'
 const date = (value: number | null | undefined, full = false) => displayDate(value, full)
-function status(l: Link): '监测中' | '等待确认' | '需处理' | '已暂停' {
+function status(l: Link): '正常' | '异常' | '禁用' {
   if (l.paused)
-    return '已暂停'
-  if (l.pending?.kind === 'unknown' || l.pending?.kind === 'ready' || (observation(l)?.failure_since != null && Date.now() - observation(l)!.failure_since! >= 3600000))
-    return '需处理'
-  return ['confirm', 'changed'].includes(l.pending?.kind || '') ? '等待确认' : '监测中'
+    return '禁用'
+  if (l.pending?.kind === 'unknown' || l.pending?.kind === 'changed' || l.pending?.kind === 'confirm' || (observation(l)?.failure_since != null && Date.now() - observation(l)!.failure_since! >= 3600000))
+    return '异常'
+  return '正常'
 }
-const tone = (l: Link) => ({ 监测中: 'success', 等待确认: 'warning', 需处理: 'danger', 已暂停: 'neutral' } as const)[status(l)]
-const needs = computed(() => rows.value.filter(l => ['等待确认', '需处理'].includes(status(l))))
+const tone = (l: Link) => ({ 正常: 'success', 异常: 'danger', 禁用: 'neutral' } as const)[status(l)]
 const keys = computed(() => (data.value?.keys || []).map(k => ({ value: k.id, label: k.name, disabled: !!data.value?.state.links[k.id], description: data.value?.state.links[k.id] ? `已关联 ${account(data.value.state.links[k.id])?.name || '账号'}` : undefined })))
 const accounts = computed(() => (data.value?.accounts || []).map(a => ({ value: a.account_id, label: a.name || a.email || a.account_id, description: (a.provider_id !== 'openai' || a.authentication_kind !== 'oauth') ? '仅支持 Codex 账号周窗口' : a.name !== a.email ? a.email || undefined : undefined, disabled: (a.provider_id !== 'openai' || a.authentication_kind !== 'oauth') })))
 async function setEarlyAuto(enabled: boolean) {
@@ -153,18 +152,13 @@ onUnmounted(() => clearInterval(timer))
           <BaseIconButton label="刷新列表" title="刷新列表" :disabled="busy" @click="refresh">
             <RefreshCw :size="17" />
           </BaseIconButton>
-          <div class="inline-early-reset" title="开启后自动处理账号提前重置；关闭后需要手动确认，正常换周仍自动处理">
+          <div class="inline-early-reset" title="关闭后跳过提前重置且不清零；正常换周仍自动处理">
             <BaseCheckbox :model-value="data?.state.early_auto ?? true" label="提前重置自动清零" :disabled="busy || !data" @update:model-value="setEarlyAuto" />
           </div>
           <BaseButton variant="primary" :disabled="busy || !data" @click="open('add')">
             <Plus :size="16" />添加关联
           </BaseButton>
         </div>
-      </div>
-      <div v-if="needs.length" class="banner">
-        <span>{{ needs.length }} 个关联需要处理</span><BaseButton size="sm" @click="open('process', needs[0])">
-          查看并处理
-        </BaseButton>
       </div>
       <p v-if="!data && !error" class="empty" role="status">
         正在加载关联
@@ -205,9 +199,7 @@ onUnmounted(() => clearInterval(timer))
               <div class="status">
                 <BaseTag :type="tone(l)" size="sm">
                   {{ status(l) }}
-                </BaseTag><BaseButton v-if="['等待确认', '需处理'].includes(status(l))" size="sm" :disabled="busy" @click="open('process', l)">
-                  处理
-                </BaseButton>
+                </BaseTag>
               </div>
             </td>
             <td class="row-actions" data-label="操作">
@@ -228,7 +220,7 @@ onUnmounted(() => clearInterval(timer))
         </table>
       </div>
   </main>
-  <BaseModal v-model="modalOpen" :title="({ add: '添加关联', process: '处理关联', delete: '删除关联' })[modal] || '关联'" :dismissible="!busy" :draggable="false">
+  <BaseModal v-model="modalOpen" :title="({ add: '添加关联', delete: '删除关联' })[modal] || '关联'" :dismissible="!busy" :draggable="false">
     <p v-if="error" role="alert" class="error">
       {{ error }}
     </p>
@@ -246,33 +238,6 @@ onUnmounted(() => clearInterval(timer))
         已识别 Codex 周窗口，上游预计重置 {{ date(preview.reset) }}
       </p>
     </template>
-    <template v-else-if="link && modal === 'process'">
-      <h3>{{ keyName(link) }}</h3><p class="muted">
-        {{ accountName(link) }}
-      </p>
-      <template v-if="link.pending?.kind === 'unknown'">
-        <p>重置结果未知，已停止自动重试</p><p class="muted">
-          保留现有用量并跳过会重新建立基线
-        </p><BaseCheckbox v-model="acknowledge" label="我了解可能清掉期间新产生的消费" />
-      </template>
-      <template v-else-if="link.pending?.kind === 'changed'">
-        <p>目标窗口标识或时长发生变化，已停止自动清零</p>
-        <p v-for="window in link.pending.windows" :key="window.key">
-          {{ window.key }} · {{ window.window_seconds }} 秒 · {{ date(window.reset_at_ms, true) }}
-        </p>
-        <p class="muted">
-          请在宿主检查账号套餐，恢复唯一 Codex 周窗口后再确认或更新基线
-        </p>
-      </template>
-      <template v-else-if="link.pending?.kind === 'confirm'">
-        <p>{{ link.pending.reason === 'early' ? '账号提前进入新周期，自动清零开关已关闭' : '周期边界变化无法解释，需要你确认' }}</p><dl><dt>原边界</dt><dd>{{ date(link.baseline.reset, true) }}</dd><dt>新边界</dt><dd>{{ date(link.pending.sample.reset, true) }}</dd><dt>推算的新窗口起点</dt><dd>{{ date(link.pending.sample.reset - 604800000, true) }}</dd></dl><p class="muted">
-          确认后会清零当前周用量，此操作无法撤销
-        </p>
-      </template>
-      <p v-else>
-        {{ observation(link)?.error || '读取预算失败，尚未调用清零' }}
-      </p>
-    </template>
     <template v-else-if="modal === 'delete'">
       <p>确定删除“{{ link ? keyName(link) : '此 Key' }}”的关联吗？</p>
       <p class="muted">仅删除本插件的关联记录，不会删除或停用宿主 Key，也不能撤销已执行的重置。</p>
@@ -284,20 +249,6 @@ onUnmounted(() => clearInterval(timer))
       </BaseButton>
       <BaseButton v-if="modal === 'add'" variant="primary" :loading="busy" :disabled="!keyId || !preview || previewBusy" @click="act('add', { key_id: keyId, account_id: accountId })">
         添加
-      </BaseButton>
-      <template v-if="modal === 'process' && link?.pending">
-        <BaseButton :disabled="busy" @click="act('skip')">
-          {{ link.pending.kind === 'unknown' ? '保留现有用量并跳过' : '忽略并更新基线' }}
-        </BaseButton>
-        <BaseButton v-if="link.pending.kind === 'unknown'" variant="destructive" :disabled="!acknowledge || busy" @click="act('retry')">
-          再清零一次
-        </BaseButton>
-        <BaseButton v-if="['confirm', 'changed'].includes(link.pending.kind)" variant="primary" :loading="busy" @click="act('confirm')">
-          确认并清零
-        </BaseButton>
-      </template>
-      <BaseButton v-if="modal === 'process' && !link?.pending" :loading="busy" @click="act('check')">
-        立即检查
       </BaseButton>
       <BaseButton v-if="modal === 'delete'" variant="destructive" :disabled="!acknowledge || busy" @click="act('delete')">
         删除关联
