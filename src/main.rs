@@ -9,6 +9,7 @@ use gateway_plugin_sdk::{
 use key_reset_follow::{
     engine::Engine,
     host::{Host, SdkHost, fault},
+    model::State,
 };
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -30,11 +31,25 @@ struct Command {
     action: String,
     key_id: Option<String>,
     account_id: Option<String>,
-    version: Option<u64>,
     enabled: Option<bool>,
-    display_timezone: Option<key_reset_follow::model::DisplayTimezone>,
     #[serde(default)]
     acknowledge: bool,
+}
+// 后台对账可频繁推进整个 State 的版本；操作只需确认用户选择的关联身份未变。
+// 具体持久化仍由 host.state.put 的 expected_version 原子比较保护。
+fn ensure_current_link(
+    state: &State,
+    key: &str,
+    expected_account: Option<&str>,
+) -> Result<(), PluginFault> {
+    let link = state
+        .links
+        .get(key)
+        .ok_or_else(|| fault("关联已不存在，请刷新列表"))?;
+    if Some(link.account_id.as_str()) != expected_account {
+        return Err(fault("关联账号已变化，请刷新列表"));
+    }
+    Ok(())
 }
 fn registration() -> ManagementRegistration {
     ManagementRegistration {
@@ -61,8 +76,8 @@ fn registration() -> ManagementRegistration {
             .collect(),
         pages: vec![ManagementPage {
             id: "follow".into(),
-            title: "Key 周额度跟随账号重置".into(),
-            description: Some("确认账号新周期后清零关联 Key 周预算".into()),
+            title: "额度跟随重置".into(),
+            description: Some("密钥额度跟随账号重置".into()),
             entry: "web/index.html".into(),
             icon: None,
         }],
@@ -75,10 +90,10 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
     if call.request.method == "POST" {
         let cmd: Command =
             serde_json::from_slice(&call.payload).map_err(|_| fault("请求格式不正确"))?;
-        if cmd.action != "preview" && cmd.version != engine.version {
-            return Err(fault("页面状态已变化，请刷新后重试"));
-        }
         let key = cmd.key_id.as_deref().unwrap_or("");
+        if matches!(cmd.action.as_str(), "check" | "pause" | "resume" | "delete") {
+            ensure_current_link(&engine.state, key, cmd.account_id.as_deref())?;
+        }
         match cmd.action.as_str() {
             "preview" => {
                 return Ok(
@@ -96,12 +111,12 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
                     )
                     .await?
             }
-            "settings" => {
-                engine.state.early_auto = cmd.enabled.ok_or_else(|| fault("缺少开关值"))?;
-                if let Some(timezone) = cmd.display_timezone {
-                    engine.state.display_timezone = timezone;
+            "early_auto" => {
+                let enabled = cmd.enabled.ok_or_else(|| fault("缺少开关值"))?;
+                if engine.state.early_auto != enabled {
+                    engine.state.early_auto = enabled;
+                    engine.save().await?;
                 }
-                engine.save().await?;
             }
             "check" => {
                 let account = engine
@@ -153,6 +168,7 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
             json!({
                 "account_id": a.account_id, "name": a.name, "email": a.email,
                 "provider_id": a.provider_id, "authentication_kind": a.authentication_kind,
+                "plan_type": a.plan_type,
             })
         }));
         cursor = page.next_cursor;
@@ -229,4 +245,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     .run(plugin)
     .await?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use key_reset_follow::{
+        cycle::Sample,
+        model::{Link, Phase},
+    };
+
+    #[test]
+    fn association_target_stays_bound_to_original_account() {
+        let mut state = State::default();
+        state.links.insert(
+            "key-1".into(),
+            Link {
+                key_id: "key-1".into(),
+                account_id: "account-a".into(),
+                baseline: Sample {
+                    observed: 1,
+                    reset: 2,
+                    used: None,
+                },
+                paused: false,
+                pending: None,
+                events: Default::default(),
+                retry_at: 0,
+                phase: Phase::Tracking,
+            },
+        );
+        assert!(ensure_current_link(&state, "key-1", Some("account-a")).is_ok());
+        assert!(ensure_current_link(&state, "key-1", Some("account-b")).is_err());
+        assert!(ensure_current_link(&state, "key-1", None).is_err());
+        assert!(ensure_current_link(&state, "missing", Some("account-a")).is_err());
+        // 后台调整观测时间不改变关联身份，不应阻止操作。
+        state.links.get_mut("key-1").unwrap().baseline.observed += 1;
+        assert!(ensure_current_link(&state, "key-1", Some("account-a")).is_ok());
+    }
 }

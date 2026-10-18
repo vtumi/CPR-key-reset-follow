@@ -1,17 +1,26 @@
 import assert from 'node:assert/strict'
+import process from 'node:process'
 import { it } from 'node:test'
-import { displayDate, money, percent, resolveTimezone, timezoneLabel } from '../src/display.ts'
+import { displayDate, money, percent, subscriptionLabel } from '../src/display.ts'
 
-it('时区只改变显示，同一时间跨日和夏令时仍正确', () => {
+it('日期跟随浏览器时区，跨日与夏令时自动适配', () => {
   const value = Date.parse('2026-10-03T02:10:00Z')
-  assert.equal(displayDate(value, 'Asia/Shanghai'), '10/03 10:10')
-  assert.equal(displayDate(value, 'UTC'), '10/03 02:10')
-  assert.equal(displayDate(value, 'America/Los_Angeles'), '10/02 19:10')
-  assert.equal(displayDate(value, 'Asia/Shanghai', true), '2026/10/03 10:10（UTC+8）')
-  assert.equal(timezoneLabel('America/Los_Angeles', value), 'America/Los_Angeles（UTC-7）')
-  assert.equal(timezoneLabel('America/Los_Angeles', Date.parse('2026-12-01T00:00:00Z')), 'America/Los_Angeles（UTC-8）')
-  assert.equal(resolveTimezone('browser'), new Intl.DateTimeFormat().resolvedOptions().timeZone)
-  assert.equal(displayDate(null, 'UTC'), '暂无时间')
+  const original = process.env.TZ
+  try {
+    process.env.TZ = 'Asia/Shanghai'
+    assert.equal(displayDate(value), '10/03 10:10')
+    assert.equal(displayDate(value, true), '2026/10/03 10:10')
+    process.env.TZ = 'America/Los_Angeles'
+    assert.equal(displayDate(value), '10/02 19:10')
+    assert.equal(displayDate(Date.parse('2026-12-01T00:00:00Z'), true), '2026/11/30 16:00')
+    assert.equal(displayDate(null), '暂无时间')
+  }
+  finally {
+    if (original === undefined)
+      delete process.env.TZ
+    else
+      process.env.TZ = original
+  }
 })
 
 it('金额和账号用量区分空值与零，并控制展示精度', () => {
@@ -22,4 +31,12 @@ it('金额和账号用量区分空值与零，并控制展示精度', () => {
   assert.equal(percent(null), '暂无数据')
   assert.equal(percent(0), '0%')
   assert.equal(percent(45.123), '45.1%')
+})
+
+it('订阅与平台类型来自真实账号字段，不推测缺失数据', () => {
+  assert.equal(subscriptionLabel('plus', 'oauth'), 'Plus')
+  assert.equal(subscriptionLabel('pro', 'oauth'), 'Pro')
+  assert.equal(subscriptionLabel('custom-tier', 'oauth'), 'custom-tier')
+  assert.equal(subscriptionLabel(null, 'oauth'), '—')
+  assert.equal(subscriptionLabel(null, 'api_key'), 'API')
 })

@@ -1,14 +1,8 @@
-export type DisplayTimezone = 'browser' | 'Asia/Shanghai' | 'UTC'
-
-export function resolveTimezone(selection: DisplayTimezone): string {
-  return selection === 'browser' ? new Intl.DateTimeFormat().resolvedOptions().timeZone : selection
-}
-
-export function displayDate(value: number | null | undefined, timezone: string, full = false): string {
+export function displayDate(value: number | null | undefined, full = false): string {
   if (value == null)
     return '暂无时间'
+  // 与主项目一致，直接使用浏览器本地时间，不另外声明时区。
   const formatted = new Intl.DateTimeFormat('zh-CN', {
-    timeZone: timezone,
     ...(full ? { year: 'numeric' } as const : {}),
     month: '2-digit',
     day: '2-digit',
@@ -16,21 +10,23 @@ export function displayDate(value: number | null | undefined, timezone: string, 
     minute: '2-digit',
     hourCycle: 'h23',
   }).format(value)
-  return full ? `${formatted}（${timezoneOffset(timezone, value)}）` : formatted
+  return formatted
 }
 
-function timezoneOffset(timezone: string, value: number): string {
-  return new Intl.DateTimeFormat('en', { timeZone: timezone, timeZoneName: 'shortOffset' })
-    .formatToParts(value)
-    .find(part => part.type === 'timeZoneName')!
-    .value
-    .replace('GMT', 'UTC')
-}
-
-export function timezoneLabel(timezone: string, value = Date.now()): string {
-  const offset = timezoneOffset(timezone, value)
-  const name = timezone === 'Asia/Shanghai' ? '北京时间' : timezone === 'UTC' ? '协调世界时' : timezone
-  return `${name}（${offset}）`
+// 订阅只展示宿主账号目录提供的类型；缺失时不能从使用率推断套餐。
+export function subscriptionLabel(planType?: string | null, authenticationKind?: string | null): string {
+  if (authenticationKind?.toLowerCase() === 'api_key')
+    return 'API'
+  const plan = planType?.trim()
+  if (!plan)
+    return '—'
+  switch (plan.toLowerCase()) {
+    case 'free': return 'Free'
+    case 'plus': return 'Plus'
+    case 'pro': return 'Pro'
+    case 'prolite': return 'Pro Lite'
+    default: return plan
+  }
 }
 
 export function money(value: string | undefined): string {

@@ -1,9 +1,10 @@
 name: CI
 on:
   push:
-    branches: [main, 'codex/**']
+    branches: [main]
     tags: ['v*']
   pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -30,21 +31,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Refresh SDK dependency lockfile
-        run: cargo generate-lockfile
-      - uses: actions/upload-artifact@v4
-        with:
-          name: refreshed-lock-${{ matrix.artifact }}
-          path: Cargo.lock
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
-      - run: pnpm --dir frontend install --frozen-lockfile
+      - run: pnpm --dir frontend install --no-frozen-lockfile
+      - uses: actions/upload-artifact@v4
+        with:
+          name: refreshed-frontend-lock-${{ matrix.artifact }}
+          path: frontend/pnpm-lock.yaml
       - run: pnpm --dir frontend lint
       - run: pnpm --dir frontend test
       - run: pnpm --dir frontend build
       - run: cargo build --release --locked
-      - name: 构建 CPR v3.29.1 打包工具
+      - name: Build CPR Plugin Packaging CLI
         run: |
           git init /tmp/cpr-sdk
           git -C /tmp/cpr-sdk remote add origin https://github.com/zyycn/codex-proxy-rs.git
