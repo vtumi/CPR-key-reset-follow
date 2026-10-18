@@ -141,7 +141,7 @@ onUnmounted(() => clearInterval(timer))
       <div class="toolbar">
         <div><span class="count">{{ rows.length }} 个关联</span></div>
         <div class="tools toolbar-actions">
-          <BaseIconButton label="刷新列表" title="刷新列表，不检查账号额度" :disabled="busy" @click="refresh">
+          <BaseIconButton label="刷新列表" title="刷新列表" :disabled="busy" @click="refresh">
             <RefreshCw :size="17" />
           </BaseIconButton>
           <div class="inline-early-reset" title="开启后自动处理账号提前重置；关闭后需要手动确认，正常换周仍自动处理">
@@ -192,7 +192,7 @@ onUnmounted(() => clearInterval(timer))
             </td>
             <td class="row-actions">
               <div class="tools">
-                <BaseIconButton label="立即检查" title="立即检查账号额度" :disabled="busy || l.paused" @click="selected = l.key_id; act('check')">
+                <BaseIconButton label="立即刷新" title="立即刷新" :disabled="busy || l.paused" @click="selected = l.key_id; act('check')">
                   <RefreshCw :size="16" />
                 </BaseIconButton><BaseIconButton label="查看详情" title="查看详情" :disabled="busy" @click="open('detail', l)">
                   <ChevronRight :size="17" />
