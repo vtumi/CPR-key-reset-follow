@@ -20,11 +20,8 @@ th:first-child { border-radius: 7px 0 0 7px; } th:last-child { border-radius: 0 
 .account-identity { min-width: 180px; max-width: 240px; }
 .identity strong, .identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .platform-type { white-space: nowrap; font-size: 12px; }
-.subscription-badge { display: inline-flex; align-items: center; max-width: 100%; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.4; white-space: nowrap; background: var(--cp-color-bg-layout); color: var(--cp-color-text-secondary); }
-.subscription-free { background: var(--cp-cyan-container, var(--cp-color-bg-layout)); color: var(--cp-cyan-on-container, var(--cp-color-text)); }
-.subscription-plus { background: var(--cp-blue-container-strong, var(--cp-color-bg-layout)); color: var(--cp-blue-on-container, var(--cp-color-text)); }
-.subscription-pro { background: var(--cp-purple-container-strong, var(--cp-color-bg-layout)); color: var(--cp-purple-on-container, var(--cp-color-text)); }
-.subscription-prolite { background: var(--cp-purple-container, var(--cp-color-bg-layout)); color: var(--cp-purple-on-container, var(--cp-color-text)); }
+.usage-identity-primary { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--cp-font-mono, ui-monospace, monospace); font-size: 14px; font-weight: 700; line-height: 1; color: var(--cp-color-text); }
+.usage-identity-secondary { display: block; max-width: 100%; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--cp-color-text-tertiary, var(--cp-color-text-secondary)); }
 .identity strong { font-weight: 600; } .numeric { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .amount { font-weight: 600; } .reset-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .row-actions { width: 80px; padding-right: 0; } .row-actions .tools { justify-content: flex-end; gap: 2px; }
@@ -50,7 +47,7 @@ dl { display: grid; grid-template-columns: minmax(100px, 1fr) 2fr; gap: 12px 20p
   tr { position: relative; padding: 20px 0; border-bottom: 1px solid var(--cp-color-border-secondary); } tr:last-child { border-bottom: 0; }
   td { padding: 8px 0; border: 0; } .identity { max-width: none; padding: 8px 0; min-width: 0; } .key-identity { padding-right: 78px; }
   td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-  td[data-label]::before { content: attr(data-label); color: var(--cp-color-text-secondary); font-size: 12px; flex-shrink: 0; } .identity strong { text-align: right; } .account-identity { flex-wrap: wrap; } .account-identity small { flex-basis: 100%; text-align: right; }
+  td[data-label]::before { content: attr(data-label); color: var(--cp-color-text-secondary); font-size: 12px; flex-shrink: 0; } .identity .usage-identity-primary { text-align: right; } .account-identity { flex-wrap: wrap; } .account-identity small { flex-basis: 100%; text-align: right; }
   .numeric .limit { display: inline; font-size: inherit; } .reset-time { flex-wrap: wrap; } .reset-time small { width: 100%; text-align: right; }
   .row-actions { position: absolute; right: 0; top: 15px; width: auto; }
   h2 { font-size: 19px; } dl { grid-template-columns: 1fr; gap: 6px; } dd { margin-bottom: 10px; }
