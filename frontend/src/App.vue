@@ -26,9 +26,8 @@ const modalOpen = computed({ get: () => !!modal.value, set: (value) => {
 const rows = computed(() => Object.values(data.value?.state.links || {}))
 const link = computed(() => data.value?.state.links[selected.value])
 const account = (l: Link) => data.value?.accounts.find(a => a.account_id === l.account_id)
-const accountName = (l: Link) => account(l)?.name?.trim() || account(l)?.email || '账号已删除'
-const accountDisplay = (l: Link) => account(l)?.email?.trim() || accountName(l)
-const accountSecondary = (l: Link) => account(l)?.email?.trim() && account(l)?.name?.trim() && account(l)?.email?.trim() !== account(l)?.name?.trim() ? account(l)?.name?.trim() : ''
+// 关联列表只显示邮箱；缺少邮箱时退回账号 ID，不展示“OpenAI 账号”等泛化名称。
+const accountDisplay = (l: Link) => account(l)?.email?.trim() || account(l)?.account_id || '账号已删除'
 const observation = (l: Link) => data.value?.state.accounts[l.account_id]
 const sample = (l: Link) => observation(l)?.sample || l.baseline
 const budget = (l: Link) => data.value?.budgets[l.key_id]
@@ -177,7 +176,7 @@ onUnmounted(() => clearInterval(timer))
               <span class="usage-identity-primary" :title="keyName(l)">{{ keyName(l) }}</span>
             </td>
             <td class="identity account-identity" data-label="账号">
-              <span class="usage-identity-primary" :title="accountDisplay(l)">{{ accountDisplay(l) }}</span><span v-if="accountSecondary(l)" class="usage-identity-secondary" :title="accountSecondary(l)">{{ accountSecondary(l) }}</span>
+              <span class="usage-identity-primary" :title="accountDisplay(l)">{{ accountDisplay(l) }}</span>
             </td>
             <td data-label="订阅">
               <AccountPlanBadge v-if="account(l)?.plan_type || account(l)?.authentication_kind === 'api_key'" :plan-type="account(l)?.plan_type" :authentication-kind="account(l)?.authentication_kind" :plan-type-display="subscriptionLabel(account(l)?.plan_type, account(l)?.authentication_kind)" size="sm" />
