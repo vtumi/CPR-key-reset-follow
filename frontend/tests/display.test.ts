@@ -1,3 +1,4 @@
+import process from 'node:process'
 import assert from 'node:assert/strict'
 import { it } from 'node:test'
 import { displayDate, money, percent, subscriptionLabel } from '../src/display.ts'
