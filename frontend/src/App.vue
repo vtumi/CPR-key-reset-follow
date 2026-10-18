@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { DisplayTimezone, Link, Sample, Snapshot } from './api/modules/follow'
-import { BaseButton, BaseCheckbox, BaseIconButton, BaseModal, BaseSelect, BaseSwitch, BaseTag } from '@codex-proxy/ui'
-import { ArrowLeft, ChevronRight, Plus, RefreshCw, Settings } from '@lucide/vue'
+import type { Link, Sample, Snapshot } from './api/modules/follow'
+import { BaseButton, BaseCheckbox, BaseIconButton, BaseModal, BaseSelect, BaseTag } from '@codex-proxy/ui'
+import { ChevronRight, Plus, RefreshCw } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { command, load } from './api/modules/follow'
-import { displayDate, money, percent, resolveTimezone, timezoneLabel } from './display'
+import { displayDate, money, percent } from './display'
 
 const data = ref<Snapshot>()
 const busy = ref(false)
@@ -17,18 +17,6 @@ const preview = ref<Sample>()
 const previewError = ref('')
 const previewBusy = ref(false)
 const acknowledge = ref(false)
-const settingsOpen = ref(false)
-const draftEarly = ref(true)
-const draftTimezone = ref<DisplayTimezone>('browser')
-const saved = ref(false)
-const timezones = [
-  { value: 'browser', label: '跟随浏览器' },
-  { value: 'Asia/Shanghai', label: '北京时间（UTC+8）' },
-  { value: 'UTC', label: 'UTC' },
-]
-const timezone = computed(() => resolveTimezone(data.value?.state.display_timezone || 'browser'))
-const timezoneText = computed(() => timezoneLabel(timezone.value))
-const draftTimezoneText = computed(() => timezoneLabel(resolveTimezone(draftTimezone.value)))
 const modalOpen = computed({ get: () => !!modal.value, set: (value) => {
   if (!value)
     modal.value = ''
@@ -41,7 +29,7 @@ const observation = (l: Link) => data.value?.state.accounts[l.account_id]
 const sample = (l: Link) => observation(l)?.sample || l.baseline
 const budget = (l: Link) => data.value?.budgets[l.key_id]
 const keyName = (l: Link) => data.value?.keys.find(k => k.id === l.key_id)?.name || 'Key 已删除'
-const date = (value: number | null | undefined, full = false) => displayDate(value, timezone.value, full)
+const date = (value: number | null | undefined, full = false) => displayDate(value, full)
 function status(l: Link): '监测中' | '等待确认' | '需处理' | '已暂停' {
   if (l.paused)
     return '已暂停'
@@ -53,45 +41,30 @@ const tone = (l: Link) => ({ 监测中: 'success', 等待确认: 'warning', 需�
 const needs = computed(() => rows.value.filter(l => ['等待确认', '需处理'].includes(status(l))))
 const keys = computed(() => (data.value?.keys || []).map(k => ({ value: k.id, label: k.name, disabled: !!data.value?.state.links[k.id], description: data.value?.state.links[k.id] ? `已关联 ${account(data.value.state.links[k.id])?.name || '账号'}` : undefined })))
 const accounts = computed(() => (data.value?.accounts || []).map(a => ({ value: a.account_id, label: a.name || a.email || a.account_id, description: (a.provider_id !== 'openai' || a.authentication_kind !== 'oauth') ? '仅支持 Codex 账号周窗口' : a.name !== a.email ? a.email || undefined : undefined, disabled: (a.provider_id !== 'openai' || a.authentication_kind !== 'oauth') })))
-function openSettings() {
-  draftEarly.value = data.value!.state.early_auto
-  draftTimezone.value = data.value!.state.display_timezone || 'browser'
-  error.value = ''
-  saved.value = false
-  settingsOpen.value = true
-}
-function closeSettings() {
-  settingsOpen.value = false
-  error.value = ''
-  saved.value = false
-}
-async function saveSettings() {
-  if (busy.value)
+async function setEarlyAuto(enabled: boolean) {
+  if (busy.value || !data.value || data.value.state.early_auto === enabled)
     return
   busy.value = true
   error.value = ''
-  saved.value = false
   let committed = false
   try {
-    await command({ action: 'settings', version: data.value?.version, enabled: draftEarly.value, display_timezone: draftTimezone.value })
+    await command({ action: 'early_auto', version: data.value.version, enabled })
     committed = true
+    // 写入成功即更新勾选状态；后续 GET 失败时不错误回退为旧值。
+    data.value.state.early_auto = enabled
     data.value = await load()
-    saved.value = true
   }
   catch (e) {
     const message = (e as Error).message
-    // 保留草稿，更新状态版本，管理员再次保存时不必丢掉已填写的设置。
+    // 版本冲突或请求失败后以服务端状态为准，避免 UI 显示未保存的选项。
     try {
       data.value = await load()
     }
-    catch { /* 保留原始错误供用户重试。 */ }
-    error.value = committed ? `设置已保存，但页面刷新失败：${message}` : message
+    catch { /* 保留请求错误，用户可手动刷新。 */ }
+    error.value = committed ? `开关已保存，但页面刷新失败：${message}` : message
   }
   finally { busy.value = false }
 }
-watch([draftEarly, draftTimezone], () => {
-  saved.value = false
-})
 async function refresh() {
   try {
     data.value = await load()
@@ -151,7 +124,7 @@ let timer: ReturnType<typeof setInterval>
 onMounted(() => {
   refresh()
   timer = setInterval(() => {
-    if (!document.hidden && !modal.value && !busy.value && !settingsOpen.value)
+    if (!document.hidden && !modal.value && !busy.value)
       refresh()
   }, 30000)
 })
@@ -160,66 +133,20 @@ onUnmounted(() => clearInterval(timer))
 
 <template>
   <main class="panel">
-    <template v-if="settingsOpen">
-      <div class="settings-heading">
-        <BaseButton :disabled="busy" @click="closeSettings">
-          <ArrowLeft :size="16" />返回关联列表
-        </BaseButton>
-        <h2>插件设置</h2>
-        <p class="muted">
-          设置对所有管理员生效
-        </p>
-      </div>
-      <form class="settings-form" @submit.prevent="saveSettings">
-        <section class="setting-row">
-          <div>
-            <h3>提前重置时自动重置额度</h3>
-            <p>上游提前重置或者使用重置卡，识别后自动重置额度</p>
-            <p class="muted">
-              关闭后需要手动确认；正常换周仍自动处理
-            </p>
-          </div>
-          <BaseSwitch v-model="draftEarly" label="提前重置时自动重置额度" :disabled="busy" />
-        </section>
-        <section class="setting-row timezone-setting">
-          <div>
-            <h3>显示时区</h3><p class="muted">
-              仅影响页面上的时间显示，不改变额度重置时间
-            </p>
-          </div>
-          <div class="timezone-input">
-            <BaseSelect v-model="draftTimezone" :options="timezones" :disabled="busy" aria-label="显示时区" /><small>当前显示：{{ draftTimezoneText }}</small>
-          </div>
-        </section>
-        <p v-if="error" role="alert" class="error">
-          {{ error }}
-        </p>
-        <div class="settings-actions">
-          <span v-if="saved" role="status" class="saved">设置已保存</span>
-          <BaseButton :disabled="busy" @click="closeSettings">
-            取消
-          </BaseButton>
-          <BaseButton variant="primary" :loading="busy" @click="saveSettings">
-            保存设置
-          </BaseButton>
-        </div>
-      </form>
-    </template>
-    <template v-else>
       <p v-if="error && !modal" role="alert" class="error">
         {{ error }} <BaseButton size="sm" @click="refresh">
           重试
         </BaseButton>
       </p>
       <div class="toolbar">
-        <div><span class="count">{{ rows.length }} 个关联</span><small class="timezone-caption">时间：{{ timezoneText }}</small></div>
+        <div><span class="count">{{ rows.length }} 个关联</span></div>
         <div class="tools toolbar-actions">
           <BaseIconButton label="刷新列表" title="刷新列表，不检查账号额度" :disabled="busy" @click="refresh">
             <RefreshCw :size="17" />
           </BaseIconButton>
-          <BaseButton :disabled="busy || !data" @click="openSettings">
-            <Settings :size="16" />设置
-          </BaseButton>
+          <div class="inline-early-reset" title="开启后自动处理账号提前重置；关闭后需要手动确认，正常换周仍自动处理">
+            <BaseCheckbox :model-value="data?.state.early_auto ?? true" label="提前重置自动清零" :disabled="busy || !data" @update:model-value="setEarlyAuto" />
+          </div>
           <BaseButton variant="primary" :disabled="busy || !data" @click="open('add')">
             <Plus :size="16" />添加关联
           </BaseButton>
@@ -275,7 +202,6 @@ onUnmounted(() => clearInterval(timer))
           </tr>
         </tbody>
       </table>
-    </template>
   </main>
   <BaseModal v-model="modalOpen" :title="({ add: '添加关联', detail: '关联详情', process: '处理关联', delete: '删除关联' })[modal] || '关联'" :dismissible="!busy" :draggable="false">
     <p v-if="error" role="alert" class="error">
