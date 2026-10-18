@@ -223,11 +223,11 @@ onUnmounted(() => clearInterval(timer))
       {{ error }}
     </p>
     <template v-if="modal === 'add'">
-      <label class="field">密钥<BaseSelect v-model="keyId" :options="keys" filterable placeholder="选择现有密钥" :disabled="busy" /></label>
+      <label class="field">密钥<BaseSelect v-model="keyId" :options="keys" filterable placeholder="选择密钥" :disabled="busy" /></label>
       <p v-if="keyId && Number(data?.budgets[keyId]?.weekly_limit_usd) === 0" class="muted">
         该密钥未设周限额，清零无实际作用
       </p>
-      <label class="field">额度来源账号<BaseSelect v-model="accountId" :options="accounts" filterable placeholder="选择账号名称或邮箱" :disabled="busy" /></label>
+      <label class="field">账号<BaseSelect v-model="accountId" :options="accounts" filterable placeholder="选择账号" :disabled="busy" /></label>
       <p v-if="previewBusy" role="status">
         正在识别周窗口
       </p><p v-else-if="previewError" class="error">
