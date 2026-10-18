@@ -29,32 +29,6 @@ export function subscriptionLabel(planType?: string | null, authenticationKind?:
   }
 }
 
-export function subscriptionStyle(planType?: string | null): string {
-  switch (planType?.trim().toLowerCase()) {
-    case 'free': return 'free'
-    case 'plus': return 'plus'
-    case 'pro': return 'pro'
-    case 'prolite': return 'prolite'
-    default: return 'other'
-  }
-}
-
-export function providerTypeLabel(provider?: string | null, authenticationKind?: string | null): string {
-  const normalized = provider?.trim()
-  const name = normalized?.toLowerCase() === 'openai'
-    ? 'OpenAI'
-    : normalized?.toLowerCase() === 'xai'
-      ? 'xAI'
-      : normalized || '—'
-  const kind = authenticationKind?.trim()
-  const auth = kind?.toLowerCase() === 'oauth'
-    ? 'OAuth'
-    : kind?.toLowerCase() === 'api_key'
-      ? 'API Key'
-      : kind || '—'
-  return `${name} / ${auth}`
-}
-
 export function money(value: string | undefined): string {
   if (value == null || !Number.isFinite(Number(value)))
     return '暂无数据'
