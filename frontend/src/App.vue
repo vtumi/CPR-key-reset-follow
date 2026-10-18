@@ -167,7 +167,7 @@ onUnmounted(() => clearInterval(timer))
     </div>
     <div v-else-if="data" class="table-scroll">
       <table>
-        <thead><tr><th>密钥名称</th><th>账号</th><th>订阅</th><th>平台/类型</th><th>本周用量</th><th>账号使用情况</th><th>账号预计重置</th><th>状态</th><th><span class="sr-only">操作</span></th></tr></thead>
+        <thead><tr><th>密钥名称</th><th>账号</th><th>订阅</th><th>平台/类型</th><th>本周额度</th><th>账号本周用量</th><th>账号重置时间</th><th>状态</th><th><span class="sr-only">操作</span></th></tr></thead>
         <tbody>
           <tr v-for="l in rows" :key="l.key_id">
             <td class="identity key-identity" data-label="密钥名称">
@@ -183,13 +183,13 @@ onUnmounted(() => clearInterval(timer))
             <td data-label="平台/类型">
               <ProviderIconGroup :provider="account(l)?.provider_id" :authentication-kind="account(l)?.authentication_kind" />
             </td>
-            <td data-label="本周用量" class="numeric">
+            <td data-label="本周额度" class="numeric">
               <span v-if="budget(l)"><span class="amount">{{ money(budget(l)!.weekly_used_usd) }}</span><span class="limit"> / {{ Number(budget(l)!.weekly_limit_usd) === 0 ? '不限额' : money(budget(l)!.weekly_limit_usd) }}</span></span><span v-else class="muted">无法读取预算</span>
             </td>
-            <td data-label="账号使用情况" class="numeric">
+            <td data-label="账号本周用量" class="numeric">
               {{ percent(sample(l).used) }}
             </td>
-            <td data-label="账号预计重置" class="reset-time">
+            <td data-label="账号重置时间" class="reset-time">
               <span :title="date(sample(l).reset, true)">{{ date(sample(l).reset) }}</span><small v-if="observation(l)?.error">最近检查失败</small><small v-else-if="sample(l).reset <= Date.now()">等待账号更新周期</small>
             </td>
             <td data-label="状态">
