@@ -37,8 +37,15 @@ struct Command {
 }
 // 后台对账可频繁推进整个 State 的版本；操作只需确认用户选择的关联身份未变。
 // 具体持久化仍由 host.state.put 的 expected_version 原子比较保护。
-fn ensure_current_link(state: &State, key: &str, expected_account: Option<&str>) -> Result<(), PluginFault> {
-    let link = state.links.get(key).ok_or_else(|| fault("关联已不存在，请刷新列表"))?;
+fn ensure_current_link(
+    state: &State,
+    key: &str,
+    expected_account: Option<&str>,
+) -> Result<(), PluginFault> {
+    let link = state
+        .links
+        .get(key)
+        .ok_or_else(|| fault("关联已不存在，请刷新列表"))?;
     if Some(link.account_id.as_str()) != expected_account {
         return Err(fault("关联账号已变化，请刷新列表"));
     }
@@ -195,7 +202,11 @@ mod tests {
             Link {
                 key_id: "key-1".into(),
                 account_id: "account-a".into(),
-                baseline: Sample { observed: 1, reset: 2, used: None },
+                baseline: Sample {
+                    observed: 1,
+                    reset: 2,
+                    used: None,
+                },
                 paused: false,
                 pending: None,
                 events: Default::default(),
