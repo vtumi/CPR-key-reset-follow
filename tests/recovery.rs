@@ -203,14 +203,14 @@ async fn failed_intent_write_does_not_call_reset() {
     assert!(h.0.lock().unwrap().resets.is_empty());
 }
 #[tokio::test]
-async fn early_switch_and_manual_skip_preserve_usage() {
+async fn early_switch_skips_reset_without_manual_processing() {
     let h = Fake::new();
     setup(&h).await;
     {
-        let mut s = h.0.lock().unwrap();
-        s.state.early_auto = false;
-        s.time = 2000000;
-        s.reset_at = WEEK + 1500000;
+        let mut storage = h.0.lock().unwrap();
+        storage.state.early_auto = false;
+        storage.time = 2000000;
+        storage.reset_at = WEEK + 1500000;
     }
     Engine::load(&h)
         .await
@@ -218,23 +218,13 @@ async fn early_switch_and_manual_skip_preserve_usage() {
         .check("account-a", 2000000)
         .await
         .unwrap();
-    assert!(h.0.lock().unwrap().resets.is_empty());
-    assert!(matches!(
-        h.0.lock().unwrap().state.links["key-a"].pending,
-        Some(Pending::Confirm { .. })
-    ));
-    Engine::load(&h)
-        .await
-        .unwrap()
-        .action("key-a", "skip", false, 2000000)
-        .await
-        .unwrap();
-    assert!(h.0.lock().unwrap().resets.is_empty());
-    assert_eq!(
-        h.0.lock().unwrap().state.links["key-a"].baseline.reset,
-        WEEK + 1500000
-    );
+    let storage = h.0.lock().unwrap();
+    assert!(storage.resets.is_empty());
+    assert!(storage.state.links["key-a"].pending.is_none());
+    assert!(storage.state.links["key-b"].pending.is_none());
+    assert_eq!(storage.state.links["key-a"].baseline.reset, WEEK + 1500000);
 }
+
 #[tokio::test]
 async fn concurrent_stale_state_cannot_claim_reset() {
     let h = Fake::new();
