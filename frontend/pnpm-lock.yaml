@@ -191,6 +191,9 @@ importers:
 
   .:
     dependencies:
+      '@boxicons/vue':
+        specifier: 1.0.1
+        version: 1.0.1(vue@3.5.43(typescript@6.0.3))
       '@codex-proxy/ui':
         specifier: https://github.com/zyycn/codex-proxy-ui/releases/download/v0.3.0/codex-proxy-ui-0.3.0.tgz
         version: https://github.com/zyycn/codex-proxy-ui/releases/download/v0.3.0/codex-proxy-ui-0.3.0.tgz(change-case@5.4.4)(vite@8.3.0(@types/node@26.6.2)(jiti@2.7.0)(yaml@2.9.1))(vue@3.5.43(typescript@6.0.3))
@@ -327,6 +330,15 @@ packages:
   '@babel/types@7.29.8':
     resolution: {integrity: sha512-Vj1jF3cPfxg7OAfoI7QnVKLoILlm2JF9pnVHrX8qx7AHMiYWT+NDAA7jChlNgRS4WTLc/fD1lXLmPixluj+3Gg==}
     engines: {node: '>=6.9.0'}
+
+  '@boxicons/vue@1.0.1':
+    resolution: {integrity: sha512-eZKXfR0oQTq06MJAEgvGqx1Oi9aLNfqVFdEDY4YWEN3AVf167WY9OH5wMjRDVL1mn3GgplpdmPEIe+Sj7/A3PQ==}
+    peerDependencies:
+      vue: '>=3.0.0'
+
+  '@boxicons/vue@1.0.1(vue@3.5.43(typescript@6.0.3))':
+    dependencies:
+      vue: 3.5.43(typescript@6.0.3)
 
   '@cacheable/memory@2.2.0':
     resolution: {integrity: sha512-CTLKqLItRCEixEAewD3/j9DB3/o96gpTPD4eJ1v+DGOlxZRZncRQkGYqqnAGCscYd6RNeXfGeiuCphsPtqyIfQ==}
