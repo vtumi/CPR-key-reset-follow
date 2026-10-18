@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Link, Sample, Snapshot } from './api/modules/follow'
 import { BaseButton, BaseCheckbox, BaseIconButton, BaseModal, BaseSelect, BaseTag } from '@codex-proxy/ui'
-import { ChevronRight, Plus, RefreshCw } from '@lucide/vue'
+import { Plus, RefreshCw } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { command, load } from './api/modules/follow'
 import { displayDate, money, percent, subscriptionLabel } from './display'
@@ -101,6 +101,11 @@ async function act(action: string, extra: object = {}, close = true) {
   }
   catch (e) { error.value = (e as Error).message }
   finally { busy.value = false }
+}
+// 行内启用/禁用仅影响插件关联监测，不改变宿主 Key 的启用状态。
+async function toggleLink(l: Link) {
+  selected.value = l.key_id
+  await act(l.paused ? 'resume' : 'pause')
 }
 let previewGeneration = 0
 watch(accountId, async (id) => {
@@ -205,13 +210,17 @@ onUnmounted(() => clearInterval(timer))
                 </BaseButton>
               </div>
             </td>
-            <td class="row-actions">
+            <td class="row-actions" data-label="操作">
               <div class="tools">
                 <BaseIconButton label="立即刷新" title="立即刷新" :disabled="busy || l.paused" @click="selected = l.key_id; act('check')">
                   <RefreshCw :size="16" />
-                </BaseIconButton><BaseIconButton label="查看详情" title="查看详情" :disabled="busy" @click="open('detail', l)">
-                  <ChevronRight :size="17" />
                 </BaseIconButton>
+                <BaseButton size="sm" :disabled="busy" :title="l.paused ? '启用关联监测并重新建立基线' : '禁用关联监测，不影响宿主 Key'" @click="toggleLink(l)">
+                  {{ l.paused ? '启用' : '禁用' }}
+                </BaseButton>
+                <BaseButton size="sm" variant="destructive" :disabled="busy" title="删除关联" @click="open('delete', l)">
+                  删除
+                </BaseButton>
               </div>
             </td>
           </tr>
@@ -219,7 +228,7 @@ onUnmounted(() => clearInterval(timer))
         </table>
       </div>
   </main>
-  <BaseModal v-model="modalOpen" :title="({ add: '添加关联', detail: '关联详情', process: '处理关联', delete: '删除关联' })[modal] || '关联'" :dismissible="!busy" :draggable="false">
+  <BaseModal v-model="modalOpen" :title="({ add: '添加关联', process: '处理关联', delete: '删除关联' })[modal] || '关联'" :dismissible="!busy" :draggable="false">
     <p v-if="error" role="alert" class="error">
       {{ error }}
     </p>
@@ -236,39 +245,6 @@ onUnmounted(() => clearInterval(timer))
       </p><p v-else-if="preview">
         已识别 Codex 周窗口，上游预计重置 {{ date(preview.reset) }}
       </p>
-    </template>
-    <template v-else-if="link && modal === 'detail'">
-      <h3>{{ keyName(link) }}</h3><h4>关联账号</h4><p>{{ accountName(link) }}</p><p v-if="account(link)?.email && account(link)?.email !== accountName(link)" class="muted">
-        {{ account(link)?.email }}
-      </p>
-      <dl><dt>账号使用情况</dt><dd>{{ percent(sample(link).used) }}</dd><dt>账号预计重置</dt><dd>{{ date(sample(link).reset, true) }}</dd></dl>
-      <h4>Key 本周用量</h4><p v-if="budget(link)">
-        {{ money(budget(link)!.weekly_used_usd) }} / {{ Number(budget(link)!.weekly_limit_usd) === 0 ? '不限额' : money(budget(link)!.weekly_limit_usd) }}
-      </p><p v-else>
-        无法读取预算
-      </p>
-      <dl><dt>Key 自身的周用量重置时间</dt><dd>{{ budget(link)?.weekly_resets_at_ms ? date(budget(link)!.weekly_resets_at_ms, true) : '尚未开启或已到期' }}</dd></dl><p class="muted">
-        由宿主独立计算，可能早于账号重置；这不是 Key 失效时间
-      </p>
-      <h4>最近事件</h4><p v-for="(event, index) in [...link.events].reverse()" :key="index" class="muted">
-        {{ date(event.at) }} · {{ event.reason }}
-      </p>
-      <details>
-        <summary>判定与诊断</summary><p>窗口 codex:604800s · 604800 秒</p><p>已确认周期结束 {{ date(link.baseline.reset, true) }}</p><p>最近样本 {{ date(sample(link).observed, true) }}</p><p v-if="link.pending">
-          待处理原因 {{ link.pending.reason }}
-        </p><p v-if="link.pending?.before">
-          重置前周用量 ${{ link.pending.before.weekly_used_usd }}
-        </p><p v-if="budget(link)">
-          完整金额：${{ budget(link)!.weekly_used_usd }} / {{ Number(budget(link)!.weekly_limit_usd) === 0 ? '不限额' : `$${budget(link)!.weekly_limit_usd}` }}
-        </p><p>{{ link.pending?.error || observation(link)?.error }}</p>
-      </details>
-      <h4>操作</h4><div class="tools">
-        <BaseButton :disabled="busy" @click="act(link.paused ? 'resume' : 'pause')">
-          {{ link.paused ? '恢复并建立新基线' : '暂停关联' }}
-        </BaseButton><BaseButton variant="destructive" @click="modal = 'delete'; acknowledge = false">
-          删除关联
-        </BaseButton>
-      </div>
     </template>
     <template v-else-if="link && modal === 'process'">
       <h3>{{ keyName(link) }}</h3><p class="muted">
@@ -298,11 +274,13 @@ onUnmounted(() => clearInterval(timer))
       </p>
     </template>
     <template v-else-if="modal === 'delete'">
-      <p>仅删除本插件的关联记录，不撤销已执行的重置</p><BaseCheckbox v-model="acknowledge" label="确认删除此关联" />
+      <p>确定删除“{{ link ? keyName(link) : '此 Key' }}”的关联吗？</p>
+      <p class="muted">仅删除本插件的关联记录，不会删除或停用宿主 Key，也不能撤销已执行的重置。</p>
+      <BaseCheckbox v-model="acknowledge" label="确认删除此关联" />
     </template>
     <template #footer>
       <span v-if="modal === 'add'" class="muted">仅建立基线，不清零</span><BaseButton :disabled="busy" @click="modal = ''">
-        {{ modal === 'detail' ? '关闭' : '取消' }}
+        取消
       </BaseButton>
       <BaseButton v-if="modal === 'add'" variant="primary" :loading="busy" :disabled="!keyId || !preview || previewBusy" @click="act('add', { key_id: keyId, account_id: accountId })">
         添加
