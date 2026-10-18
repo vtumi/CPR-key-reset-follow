@@ -317,6 +317,10 @@ impl<'a, H: Host> Engine<'a, H> {
                 if !link.paused {
                     return Err(fault("关联未暂停"));
                 }
+                // 清零结果未知时不允许借由禁用/启用清除保护标记，避免重复清零。
+                if matches!(link.pending, Some(Pending::Unknown { .. })) {
+                    return Err(fault("清零结果未知，禁止重新启用此关联以免重复清零"));
+                }
                 let fresh = self.fresh(&link.account_id).await?;
                 let l = self.state.links.get_mut(key).unwrap();
                 l.baseline = fresh;
