@@ -3,37 +3,32 @@
 :root { font-family: var(--cp-font-family, system-ui); color: var(--cp-color-text); background: transparent; font-size: 14px; }
 body { margin: 0; } #app { min-height: inherit; } * { box-sizing: border-box; }
 .panel { padding: 24px; border-radius: 12px; background: var(--cp-color-bg-container); }
-.toolbar, .tools, .status, .banner, .setting-row, .settings-actions { display: flex; align-items: center; gap: 10px; }
+.toolbar, .tools, .status { display: flex; align-items: center; gap: 10px; }
 .toolbar { justify-content: space-between; margin-bottom: 24px; gap: 20px; }
 .tools { flex-wrap: nowrap; flex-shrink: 0; } .count { font-weight: 600; }
 .muted, small, th, dt, .limit { color: var(--cp-color-text-secondary); }
 small { display: block; margin-top: 5px; font-size: 12px; line-height: 1.5; }
-.timezone-caption { font-size: 12px; }
-table { width: 100%; border-collapse: collapse; }
+.table-scroll { width: 100%; overflow-x: auto; }
+table { width: 100%; min-width: 1220px; border-collapse: collapse; }
 th { font-weight: 500; text-align: left; font-size: 12px; white-space: nowrap; padding: 12px 14px; background: var(--cp-color-bg-layout); }
 td { padding: 23px 14px; border-bottom: 1px solid var(--cp-color-border-secondary); vertical-align: middle; }
 tbody tr:last-child td { border-bottom: 0; }
 th:first-child { border-radius: 7px 0 0 7px; } th:last-child { border-radius: 0 7px 7px 0; }
-.identity { max-width: 260px; min-width: 150px; } .identity strong, .identity small { overflow-wrap: anywhere; }
+.identity { max-width: 260px; min-width: 120px; }
+.key-identity { min-width: 115px; max-width: 185px; }
+.account-identity { min-width: 180px; max-width: 240px; }
+.identity strong, .identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.usage-identity-primary { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--cp-font-mono, ui-monospace, monospace); font-size: 14px; font-weight: 700; line-height: 1; color: var(--cp-color-text); }
 .identity strong { font-weight: 600; } .numeric { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .amount { font-weight: 600; } .reset-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
-.row-actions { width: 80px; padding-right: 0; } .row-actions .tools { justify-content: flex-end; gap: 2px; }
+.row-actions { width: 88px; min-width: 88px; padding-right: 0; } .row-actions .tools { justify-content: flex-end; gap: 6px; }
 .status { gap: 7px; white-space: nowrap; }
-.banner { background: var(--cp-color-warning-container); color: var(--cp-color-warning-text); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; justify-content: space-between; }
+.early-reset-cell { white-space: nowrap; }
 .error { color: var(--cp-color-error-text); padding: 8px 0; overflow-wrap: anywhere; }
 .empty { padding: 72px 0; text-align: center; color: var(--cp-color-text-secondary); }
 .empty p { color: var(--cp-color-text); font-weight: 500; } .empty button { margin-top: 20px; }
 .field { display: grid; gap: 8px; margin: 16px 0 20px; }
-h2 { font-size: 21px; font-weight: 600; margin: 24px 0 6px; } h3 { font-weight: 600; font-size: 15px; } h4 { margin: 24px 0 10px; font-weight: 600; }
 p { margin: 8px 0; line-height: 1.7; overflow-wrap: anywhere; }
-details { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--cp-color-border-secondary); } summary { cursor: pointer; color: var(--cp-color-text-secondary); }
-dl { display: grid; grid-template-columns: minmax(100px, 1fr) 2fr; gap: 12px 20px; margin: 16px 0; } dd { margin: 0; overflow-wrap: anywhere; }
-.settings-heading, .settings-form { max-width: 780px; margin: 0 auto; }
-.settings-heading { padding: 4px 0 12px; }
-.setting-row { justify-content: space-between; align-items: flex-start; padding: 28px 0; border-bottom: 1px solid var(--cp-color-border-secondary); gap: 28px; }
-.setting-row p { font-size: 13px; margin: 8px 0 0; } .setting-row > :last-child { flex-shrink: 0; }
-.timezone-input { width: 280px; } .timezone-input small { margin-top: 9px; overflow-wrap: anywhere; }
-.settings-actions { justify-content: flex-end; padding: 24px 0 8px; } .saved { color: var(--cp-color-success-text); margin-right: auto; font-size: 13px; }
 @media (max-width: 1000px) {
   .panel { padding: 20px; } th, td { padding-left: 9px; padding-right: 9px; }
   .identity { min-width: 120px; max-width: 180px; } .numeric .limit { display: block; font-size: 12px; margin-top: 4px; }
@@ -41,13 +36,14 @@ dl { display: grid; grid-template-columns: minmax(100px, 1fr) 2fr; gap: 12px 20p
 @media (max-width: 780px) {
   .panel { padding: 18px; } .toolbar { align-items: flex-start; flex-wrap: wrap; gap: 18px; margin-bottom: 16px; }
   .toolbar-actions { margin-left: auto; } thead { display: none; }
-  table, tbody, tr, td { display: block; width: 100%; }
+  .table-scroll { overflow-x: visible; }
+  table, tbody, tr, td { display: block; width: 100%; min-width: 0; }
   tr { position: relative; padding: 20px 0; border-bottom: 1px solid var(--cp-color-border-secondary); } tr:last-child { border-bottom: 0; }
-  td { padding: 8px 0; border: 0; } .identity { max-width: none; padding: 0 78px 16px 0; min-width: 0; }
+  td { padding: 8px 0; border: 0; } .identity { max-width: none; padding: 8px 0; min-width: 0; } .key-identity { padding-right: 78px; }
   td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-  td[data-label]::before { content: attr(data-label); color: var(--cp-color-text-secondary); font-size: 12px; flex-shrink: 0; }
+  td[data-label]::before { content: attr(data-label); color: var(--cp-color-text-secondary); font-size: 12px; flex-shrink: 0; } .identity .usage-identity-primary { text-align: right; } .account-identity { flex-wrap: wrap; }
   .numeric .limit { display: inline; font-size: inherit; } .reset-time { flex-wrap: wrap; } .reset-time small { width: 100%; text-align: right; }
-  .row-actions { position: absolute; right: 0; top: 15px; width: auto; }
-  .setting-row { gap: 16px; } .timezone-setting { flex-direction: column; } .timezone-input { width: 100%; }
-  h2 { font-size: 19px; } dl { grid-template-columns: 1fr; gap: 6px; } dd { margin-bottom: 10px; }
+  .row-actions { position: static; width: auto; min-width: 0; margin-top: 8px; }
+  .row-actions .tools { justify-content: flex-end; }
+  td.row-actions::before { align-self: center; }
 }

@@ -203,14 +203,14 @@ async fn failed_intent_write_does_not_call_reset() {
     assert!(h.0.lock().unwrap().resets.is_empty());
 }
 #[tokio::test]
-async fn early_switch_and_manual_skip_preserve_usage() {
+async fn early_switch_skips_reset_without_manual_processing() {
     let h = Fake::new();
     setup(&h).await;
     {
-        let mut s = h.0.lock().unwrap();
-        s.state.early_auto = false;
-        s.time = 2000000;
-        s.reset_at = WEEK + 1500000;
+        let mut storage = h.0.lock().unwrap();
+        storage.state.early_auto = false;
+        storage.time = 2000000;
+        storage.reset_at = WEEK + 1500000;
     }
     Engine::load(&h)
         .await
@@ -218,23 +218,13 @@ async fn early_switch_and_manual_skip_preserve_usage() {
         .check("account-a", 2000000)
         .await
         .unwrap();
-    assert!(h.0.lock().unwrap().resets.is_empty());
-    assert!(matches!(
-        h.0.lock().unwrap().state.links["key-a"].pending,
-        Some(Pending::Confirm { .. })
-    ));
-    Engine::load(&h)
-        .await
-        .unwrap()
-        .action("key-a", "skip", false, 2000000)
-        .await
-        .unwrap();
-    assert!(h.0.lock().unwrap().resets.is_empty());
-    assert_eq!(
-        h.0.lock().unwrap().state.links["key-a"].baseline.reset,
-        WEEK + 1500000
-    );
+    let storage = h.0.lock().unwrap();
+    assert!(storage.resets.is_empty());
+    assert!(storage.state.links["key-a"].pending.is_none());
+    assert!(storage.state.links["key-b"].pending.is_none());
+    assert_eq!(storage.state.links["key-a"].baseline.reset, WEEK + 1500000);
 }
+
 #[tokio::test]
 async fn concurrent_stale_state_cannot_claim_reset() {
     let h = Fake::new();
@@ -389,14 +379,13 @@ async fn early_auto_is_enabled_by_default_and_unknown_retry_requires_acknowledge
         .await
         .unwrap();
     assert_eq!(h.0.lock().unwrap().resets.len(), 2);
-    assert!(
-        Engine::load(&h)
-            .await
-            .unwrap()
-            .action("key-a", "retry", false, 2000000)
-            .await
-            .is_err()
-    );
+    // 取消人工重试入口后，结果未知仍不得被重复执行。
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .drain(2000000)
+        .await
+        .unwrap();
     assert_eq!(h.0.lock().unwrap().resets.len(), 2);
 }
 
@@ -440,8 +429,7 @@ async fn prolonged_outage_discards_queued_cycle_before_any_reset() {
 }
 
 #[tokio::test]
-async fn beta_state_and_pending_reset_survive_display_settings() {
-    use key_reset_follow::model::DisplayTimezone;
+async fn early_auto_toggle_preserves_pending_reset_state() {
     let h = Fake::new();
     setup(&h).await;
     next(&h);
@@ -452,20 +440,16 @@ async fn beta_state_and_pending_reset_survive_display_settings() {
         .check("account-a", WEEK + 1000)
         .await
         .unwrap();
-    let mut old = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
-    old.as_object_mut().unwrap().remove("display_timezone");
-    let recovered: State = serde_json::from_value(old.clone()).unwrap();
-    assert_eq!(recovered.display_timezone, DisplayTimezone::Browser);
-    h.0.lock().unwrap().state = recovered;
-    let mut e = Engine::load(&h).await.unwrap();
-    e.state.display_timezone = DisplayTimezone::Shanghai;
-    e.state.early_auto = false;
-    e.save().await.unwrap();
+    let before = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
+    let mut engine = Engine::load(&h).await.unwrap();
+    engine.state.early_auto = false;
+    engine.save().await.unwrap();
     let after = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
-    assert_eq!(after["links"], old["links"]);
-    assert_eq!(after["accounts"], old["accounts"]);
+    assert_eq!(after["links"], before["links"]);
+    assert_eq!(after["accounts"], before["accounts"]);
+    assert_eq!(after["early_auto"], false);
+    assert!(after.get("display_timezone").is_none());
     assert_eq!(h.0.lock().unwrap().resets.len(), 2);
-    assert!(serde_json::from_value::<DisplayTimezone>(serde_json::json!("unsupported")).is_err());
 }
 
 #[tokio::test]
@@ -708,4 +692,127 @@ async fn new_and_resumed_links_wait_for_a_floating_window_to_settle() {
     let s = h.0.lock().unwrap();
     assert!(s.resets.is_empty());
     assert!(s.state.links["key-a"].pending.is_none());
+}
+
+#[tokio::test]
+async fn unknown_reset_cannot_be_cleared_by_pause_and_resume() {
+    let h = Fake::new();
+    setup(&h).await;
+    next(&h);
+    h.0.lock().unwrap().lost_response = Some("key-a".into());
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .check("account-a", WEEK + 1000)
+        .await
+        .unwrap();
+    assert!(matches!(
+        h.0.lock().unwrap().state.links["key-a"].pending,
+        Some(Pending::Unknown { .. })
+    ));
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .action("key-a", "pause", false, WEEK + 2000)
+        .await
+        .unwrap();
+    assert!(
+        Engine::load(&h)
+            .await
+            .unwrap()
+            .action("key-a", "resume", false, WEEK + 3000)
+            .await
+            .is_err()
+    );
+    let s = h.0.lock().unwrap();
+    assert!(s.state.links["key-a"].paused);
+    assert!(matches!(
+        s.state.links["key-a"].pending,
+        Some(Pending::Unknown { .. })
+    ));
+    assert_eq!(s.resets.len(), 2);
+}
+
+#[tokio::test]
+async fn per_key_early_reset_can_be_disabled_independently() {
+    let h = Fake::new();
+    setup(&h).await;
+    let mut engine = Engine::load(&h).await.unwrap();
+    engine.set_early_auto("key-a", false).await.unwrap();
+    assert!(!h.0.lock().unwrap().state.links["key-a"].early_reset_enabled(true));
+    assert!(h.0.lock().unwrap().state.links["key-b"].early_reset_enabled(true));
+    {
+        let mut storage = h.0.lock().unwrap();
+        storage.time = 2_000_000;
+        storage.reset_at = WEEK + 1_500_000;
+    }
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .check("account-a", 2_000_000)
+        .await
+        .unwrap();
+    let storage = h.0.lock().unwrap();
+    assert_eq!(storage.resets, ["key-b"]);
+    assert_eq!(
+        storage.state.links["key-a"].baseline.reset,
+        WEEK + 1_500_000
+    );
+    assert!(storage.state.links["key-a"].pending.is_none());
+    assert!(storage.state.links["key-b"].pending.is_none());
+}
+
+#[tokio::test]
+async fn per_key_switch_does_not_clear_unknown_reset_or_change_other_links() {
+    let h = Fake::new();
+    setup(&h).await;
+    next(&h);
+    h.0.lock().unwrap().lost_response = Some("key-a".into());
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .check("account-a", WEEK + 1000)
+        .await
+        .unwrap();
+    let before = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .set_early_auto("key-a", false)
+        .await
+        .unwrap();
+    let after = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
+    assert_eq!(after["accounts"], before["accounts"]);
+    assert_eq!(after["links"]["key-b"], before["links"]["key-b"]);
+    assert_eq!(
+        after["links"]["key-a"]["pending"],
+        before["links"]["key-a"]["pending"]
+    );
+    assert_eq!(after["links"]["key-a"]["early_auto"], false);
+    assert_eq!(h.0.lock().unwrap().resets.len(), 2);
+}
+
+#[test]
+fn old_state_preserves_global_early_reset_default() {
+    let old = serde_json::json!({
+        "early_auto": false,
+        "links": {
+            "key-a": {
+                "key_id": "key-a",
+                "account_id": "account-a",
+                "baseline": {"observed": 1, "reset": 604800000, "used": null},
+                "paused": false,
+                "pending": null,
+                "events": [],
+                "retry_at": 0,
+                "phase": {"kind": "tracking"}
+            }
+        },
+        "accounts": {}
+    });
+    let state: State = serde_json::from_value(old).unwrap();
+    assert!(!state.links["key-a"].early_reset_enabled(state.early_auto));
+    assert!(state.links["key-a"].early_auto.is_none());
+    let restored: State = serde_json::from_value(serde_json::to_value(state).unwrap()).unwrap();
+    assert!(!restored.links["key-a"].early_reset_enabled(restored.early_auto));
 }

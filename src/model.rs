@@ -35,6 +35,9 @@ pub struct Link {
     pub account_id: String,
     pub baseline: Sample,
     pub paused: bool,
+    // None keeps compatibility with links saved before per-key controls existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub early_auto: Option<bool>,
     pub pending: Option<Pending>,
     pub events: VecDeque<Event>,
     #[serde(default)]
@@ -54,6 +57,10 @@ impl Default for Phase {
     }
 }
 impl Link {
+    pub fn early_reset_enabled(&self, legacy_default: bool) -> bool {
+        self.early_auto.unwrap_or(legacy_default)
+    }
+
     pub fn event(&mut self, at: i64, reason: impl Into<String>) {
         self.events.push_back(Event {
             at,
@@ -75,8 +82,6 @@ pub struct Account {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct State {
     pub early_auto: bool,
-    #[serde(default)]
-    pub display_timezone: DisplayTimezone,
     pub links: BTreeMap<String, Link>,
     pub accounts: BTreeMap<String, Account>,
 }
@@ -84,20 +89,8 @@ impl Default for State {
     fn default() -> Self {
         Self {
             early_auto: true,
-            display_timezone: DisplayTimezone::default(),
             links: BTreeMap::new(),
             accounts: BTreeMap::new(),
         }
     }
-}
-
-#[derive(Clone, Copy, Default, Debug, PartialEq, Serialize, Deserialize)]
-pub enum DisplayTimezone {
-    #[default]
-    #[serde(rename = "browser")]
-    Browser,
-    #[serde(rename = "Asia/Shanghai")]
-    Shanghai,
-    #[serde(rename = "UTC")]
-    Utc,
 }
