@@ -9,12 +9,22 @@ body { margin: 0; } #app { min-height: inherit; } * { box-sizing: border-box; }
 .tools { flex-wrap: nowrap; flex-shrink: 0; } .count { font-weight: 600; }
 .muted, small, th, dt, .limit { color: var(--cp-color-text-secondary); }
 small { display: block; margin-top: 5px; font-size: 12px; line-height: 1.5; }
-table { width: 100%; border-collapse: collapse; }
+.table-scroll { width: 100%; overflow-x: auto; }
+table { width: 100%; min-width: 1080px; border-collapse: collapse; }
 th { font-weight: 500; text-align: left; font-size: 12px; white-space: nowrap; padding: 12px 14px; background: var(--cp-color-bg-layout); }
 td { padding: 23px 14px; border-bottom: 1px solid var(--cp-color-border-secondary); vertical-align: middle; }
 tbody tr:last-child td { border-bottom: 0; }
 th:first-child { border-radius: 7px 0 0 7px; } th:last-child { border-radius: 0 7px 7px 0; }
-.identity { max-width: 260px; min-width: 150px; } .identity strong, .identity small { overflow-wrap: anywhere; }
+.identity { max-width: 260px; min-width: 120px; }
+.key-identity { min-width: 115px; max-width: 185px; }
+.account-identity { min-width: 180px; max-width: 240px; }
+.identity strong, .identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.platform-type { white-space: nowrap; font-size: 12px; }
+.subscription-badge { display: inline-flex; align-items: center; max-width: 100%; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.4; white-space: nowrap; background: var(--cp-color-bg-layout); color: var(--cp-color-text-secondary); }
+.subscription-free { background: var(--cp-cyan-container, var(--cp-color-bg-layout)); color: var(--cp-cyan-on-container, var(--cp-color-text)); }
+.subscription-plus { background: var(--cp-blue-container-strong, var(--cp-color-bg-layout)); color: var(--cp-blue-on-container, var(--cp-color-text)); }
+.subscription-pro { background: var(--cp-purple-container-strong, var(--cp-color-bg-layout)); color: var(--cp-purple-on-container, var(--cp-color-text)); }
+.subscription-prolite { background: var(--cp-purple-container, var(--cp-color-bg-layout)); color: var(--cp-purple-on-container, var(--cp-color-text)); }
 .identity strong { font-weight: 600; } .numeric { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .amount { font-weight: 600; } .reset-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .row-actions { width: 80px; padding-right: 0; } .row-actions .tools { justify-content: flex-end; gap: 2px; }
@@ -35,11 +45,12 @@ dl { display: grid; grid-template-columns: minmax(100px, 1fr) 2fr; gap: 12px 20p
 @media (max-width: 780px) {
   .panel { padding: 18px; } .toolbar { align-items: flex-start; flex-wrap: wrap; gap: 18px; margin-bottom: 16px; }
   .toolbar-actions { margin-left: auto; } thead { display: none; }
-  table, tbody, tr, td { display: block; width: 100%; }
+   .table-scroll { overflow-x: visible; }
+  table, tbody, tr, td { display: block; width: 100%; min-width: 0; }
   tr { position: relative; padding: 20px 0; border-bottom: 1px solid var(--cp-color-border-secondary); } tr:last-child { border-bottom: 0; }
-  td { padding: 8px 0; border: 0; } .identity { max-width: none; padding: 0 78px 16px 0; min-width: 0; }
+  td { padding: 8px 0; border: 0; } .identity { max-width: none; padding: 8px 0; min-width: 0; } .key-identity { padding-right: 78px; }
   td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-  td[data-label]::before { content: attr(data-label); color: var(--cp-color-text-secondary); font-size: 12px; flex-shrink: 0; }
+  td[data-label]::before { content: attr(data-label); color: var(--cp-color-text-secondary); font-size: 12px; flex-shrink: 0; } .identity strong { text-align: right; } .account-identity { flex-wrap: wrap; } .account-identity small { flex-basis: 100%; text-align: right; }
   .numeric .limit { display: inline; font-size: inherit; } .reset-time { flex-wrap: wrap; } .reset-time small { width: 100%; text-align: right; }
   .row-actions { position: absolute; right: 0; top: 15px; width: auto; }
   h2 { font-size: 19px; } dl { grid-template-columns: 1fr; gap: 6px; } dd { margin-bottom: 10px; }
