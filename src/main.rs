@@ -284,4 +284,3 @@ mod tests {
         assert!(ensure_current_link(&state, "key-1", Some("account-a")).is_ok());
     }
 }
-
