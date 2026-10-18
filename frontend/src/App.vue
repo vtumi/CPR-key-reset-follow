@@ -4,8 +4,9 @@ import { BaseButton, BaseCheckbox, BaseIconButton, BaseModal, BaseSelect, BaseTa
 import { ChevronRight, Plus, RefreshCw } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { command, load } from './api/modules/follow'
-import { displayDate, money, percent, subscriptionLabel, subscriptionStyle } from './display'
+import { displayDate, money, percent, subscriptionLabel } from './display'
 import ProviderIconGroup from './components/ProviderIconGroup.vue'
+import AccountPlanBadge from './components/AccountPlanBadge.vue'
 
 const data = ref<Snapshot>()
 const busy = ref(false)
@@ -174,13 +175,13 @@ onUnmounted(() => clearInterval(timer))
         <tbody>
           <tr v-for="l in rows" :key="l.key_id">
             <td class="identity key-identity" data-label="密钥名称">
-              <strong :title="keyName(l)">{{ keyName(l) }}</strong>
+              <span class="usage-identity-primary" :title="keyName(l)">{{ keyName(l) }}</span>
             </td>
             <td class="identity account-identity" data-label="账号">
-              <strong :title="accountDisplay(l)">{{ accountDisplay(l) }}</strong><small v-if="accountSecondary(l)" :title="accountSecondary(l)">{{ accountSecondary(l) }}</small>
+              <span class="usage-identity-primary" :title="accountDisplay(l)">{{ accountDisplay(l) }}</span><span v-if="accountSecondary(l)" class="usage-identity-secondary" :title="accountSecondary(l)">{{ accountSecondary(l) }}</span>
             </td>
             <td data-label="订阅">
-              <span v-if="subscriptionLabel(account(l)?.plan_type, account(l)?.authentication_kind) !== '—'" class="subscription-badge" :class="`subscription-${subscriptionStyle(account(l)?.plan_type)}`">{{ subscriptionLabel(account(l)?.plan_type, account(l)?.authentication_kind) }}</span>
+              <AccountPlanBadge v-if="account(l)?.plan_type || account(l)?.authentication_kind === 'api_key'" :plan-type="account(l)?.plan_type" :authentication-kind="account(l)?.authentication_kind" :plan-type-display="subscriptionLabel(account(l)?.plan_type, account(l)?.authentication_kind)" size="sm" />
               <span v-else class="muted">—</span>
             </td>
             <td data-label="平台/类型">
