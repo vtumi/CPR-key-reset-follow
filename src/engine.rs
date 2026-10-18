@@ -212,7 +212,8 @@ impl<'a, H: Host> Engine<'a, H> {
                         reason: decision,
                     });
                 }
-                Decision::Stale => {}
+                // Normal 已在上面的条件分支处理；显式分支满足 Rust 穷尽性检查。
+                Decision::Stale | Decision::Normal => {}
             }
         }
         self.save().await?;
