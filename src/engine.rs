@@ -121,6 +121,32 @@ impl<'a, H: Host> Engine<'a, H> {
         account.failure_since = None;
         account.failures = 0;
         account.error = None;
+        // 旧版关闭提前清零时可能留下人工确认；仅使用新的有效样本安全地跳过该周期。
+        // 不能清除结果未知等其他待处理状态，以免再次执行不可逆重置。
+        if !self.state.early_auto {
+            for link in self.state.links.values_mut().filter(|l| {
+                l.account_id == account_id
+                    && !l.paused
+                    && matches!(
+                        l.pending,
+                        Some(Pending::Confirm {
+                            reason: Decision::Early,
+                            ..
+                        })
+                    )
+            }) {
+                if cycle::classify(&link.baseline, &sample) == Decision::Early {
+                    link.baseline = sample.clone();
+                    link.phase = if cycle::floating(&sample) {
+                        Phase::default()
+                    } else {
+                        Phase::Tracking
+                    };
+                    link.pending = None;
+                    link.event(now, "提前重置已忽略，未清零");
+                }
+            }
+        }
         for link in self
             .state
             .links
@@ -169,13 +195,24 @@ impl<'a, H: Host> Engine<'a, H> {
                         .into(),
                     });
                 }
-                Decision::Early | Decision::Unexplained => {
+                Decision::Early => {
+                    // 管理员关闭提前清零后，新周期属于正常观察结果，不进入人工处理。
+                    // 只更新基线，不能调用 reset；浮动窗口继续等待结束时间固定。
+                    link.baseline = sample.clone();
+                    link.phase = if cycle::floating(&sample) {
+                        Phase::default()
+                    } else {
+                        Phase::Tracking
+                    };
+                    link.event(now, "提前重置已忽略，未清零");
+                }
+                Decision::Unexplained => {
                     link.pending = Some(Pending::Confirm {
                         sample: sample.clone(),
                         reason: decision,
-                    })
+                    });
                 }
-                Decision::Stale | Decision::Normal => {}
+                Decision::Stale => {}
             }
         }
         self.save().await?;
@@ -276,12 +313,9 @@ impl<'a, H: Host> Engine<'a, H> {
                     .accounts
                     .retain(|id, _| self.state.links.values().any(|l| &l.account_id == id));
             }
-            "resume" | "skip" => {
-                if action == "resume" && !link.paused {
+            "resume" => {
+                if !link.paused {
                     return Err(fault("关联未暂停"));
-                }
-                if action == "skip" && link.pending.is_none() {
-                    return Err(fault("没有待处理的变化"));
                 }
                 let fresh = self.fresh(&link.account_id).await?;
                 let l = self.state.links.get_mut(key).unwrap();
@@ -293,37 +327,7 @@ impl<'a, H: Host> Engine<'a, H> {
                 };
                 l.pending = None;
                 l.paused = false;
-                l.event(now, "保留现有用量并重新建立基线");
-            }
-            "confirm" | "retry" => {
-                if link.paused {
-                    return Err(fault("关联已暂停"));
-                }
-                let fresh = self.fresh(&link.account_id).await?;
-                let expected = match &link.pending {
-                    Some(Pending::Changed { .. }) if action == "confirm" => &fresh,
-                    Some(Pending::Confirm { sample, .. }) if action == "confirm" => sample,
-                    Some(Pending::Unknown { sample, .. }) if action == "retry" && acknowledge => {
-                        sample
-                    }
-                    _ => return Err(fault("状态已变化或尚未确认不可逆后果，请刷新页面")),
-                };
-                if (i128::from(fresh.reset) - i128::from(expected.reset)).abs()
-                    > i128::from(cycle::TOLERANCE)
-                {
-                    return Err(fault("上游周期已变化，请先跳过并重新建立基线"));
-                }
-                self.state.links.get_mut(key).unwrap().pending = Some(Pending::Ready {
-                    sample: fresh,
-                    reason: if action == "retry" {
-                        "人工再次清零"
-                    } else {
-                        "手动确认"
-                    }
-                    .into(),
-                });
-                self.save().await?;
-                return self.execute(key, now).await;
+                l.event(now, "启用关联并重新建立基线，未清零");
             }
             _ => return Err(fault("无效操作或缺少删除确认")),
         }
