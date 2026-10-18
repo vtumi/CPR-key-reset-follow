@@ -688,3 +688,19 @@ async fn new_and_resumed_links_wait_for_a_floating_window_to_settle() {
     assert!(s.resets.is_empty());
     assert!(s.state.links["key-a"].pending.is_none());
 }
+
+#[tokio::test]
+async fn unknown_reset_cannot_be_cleared_by_pause_and_resume() {
+    let h = Fake::new();
+    setup(&h).await;
+    next(&h);
+    h.0.lock().unwrap().lost_response = Some("key-a".into());
+    Engine::load(&h).await.unwrap().check("account-a", WEEK + 1000).await.unwrap();
+    assert!(matches!(h.0.lock().unwrap().state.links["key-a"].pending, Some(Pending::Unknown { .. })));
+    Engine::load(&h).await.unwrap().action("key-a", "pause", false, WEEK + 2000).await.unwrap();
+    assert!(Engine::load(&h).await.unwrap().action("key-a", "resume", false, WEEK + 3000).await.is_err());
+    let s = h.0.lock().unwrap();
+    assert!(s.state.links["key-a"].paused);
+    assert!(matches!(s.state.links["key-a"].pending, Some(Pending::Unknown { .. })));
+    assert_eq!(s.resets.len(), 2);
+}
