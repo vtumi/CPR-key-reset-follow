@@ -32,7 +32,7 @@ impl<'a, H: Host> Engine<'a, H> {
     }
     pub async fn add(&mut self, key: &str, account: &str, now: i64) -> Result<(), PluginFault> {
         if self.state.links.contains_key(key) {
-            return Err(fault("该 Key 已有关联"));
+            return Err(fault("该密钥已有关联"));
         }
         self.host.budget(key).await?;
         let baseline = self.fresh(account).await?;
