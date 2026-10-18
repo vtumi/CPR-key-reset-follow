@@ -20,7 +20,6 @@ th:first-child { border-radius: 7px 0 0 7px; } th:last-child { border-radius: 0 
 .account-identity { min-width: 180px; max-width: 240px; }
 .identity strong, .identity small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .usage-identity-primary { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--cp-font-mono, ui-monospace, monospace); font-size: 14px; font-weight: 700; line-height: 1; color: var(--cp-color-text); }
-.usage-identity-secondary { display: block; max-width: 100%; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--cp-color-text-tertiary, var(--cp-color-text-secondary)); }
 .identity strong { font-weight: 600; } .numeric { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .amount { font-weight: 600; } .reset-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .row-actions { width: 210px; min-width: 210px; padding-right: 0; } .row-actions .tools { justify-content: flex-end; gap: 6px; }
@@ -42,7 +41,7 @@ p { margin: 8px 0; line-height: 1.7; overflow-wrap: anywhere; }
   tr { position: relative; padding: 20px 0; border-bottom: 1px solid var(--cp-color-border-secondary); } tr:last-child { border-bottom: 0; }
   td { padding: 8px 0; border: 0; } .identity { max-width: none; padding: 8px 0; min-width: 0; } .key-identity { padding-right: 78px; }
   td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-  td[data-label]::before { content: attr(data-label); color: var(--cp-color-text-secondary); font-size: 12px; flex-shrink: 0; } .identity .usage-identity-primary { text-align: right; } .account-identity { flex-wrap: wrap; } .account-identity small { flex-basis: 100%; text-align: right; }
+  td[data-label]::before { content: attr(data-label); color: var(--cp-color-text-secondary); font-size: 12px; flex-shrink: 0; } .identity .usage-identity-primary { text-align: right; } .account-identity { flex-wrap: wrap; }
   .numeric .limit { display: inline; font-size: inherit; } .reset-time { flex-wrap: wrap; } .reset-time small { width: 100%; text-align: right; }
   .row-actions { position: static; width: auto; min-width: 0; margin-top: 8px; }
   .row-actions .tools { justify-content: flex-end; }
