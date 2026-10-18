@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Link, Sample, Snapshot } from './api/modules/follow'
 import { BaseButton, BaseCheckbox, BaseIconButton, BaseModal, BaseSelect, BaseTag } from '@codex-proxy/ui'
-import { Plus, RefreshCw } from '@lucide/vue'
+import { Plus, Power, PowerOff, RefreshCw, Trash2 } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { command, load } from './api/modules/follow'
 import AccountPlanBadge from './components/AccountPlanBadge.vue'
@@ -18,7 +18,6 @@ const accountId = ref('')
 const preview = ref<Sample>()
 const previewError = ref('')
 const previewBusy = ref(false)
-const acknowledge = ref(false)
 const modalOpen = computed({ get: () => !!modal.value, set: (value) => {
   if (!value)
     modal.value = ''
@@ -77,7 +76,6 @@ async function refresh() {
 function open(kind: string, l?: Link) {
   selected.value = l?.key_id || ''
   modal.value = kind
-  acknowledge.value = false
   error.value = ''
   if (kind === 'add') {
     keyId.value = ''
@@ -92,7 +90,7 @@ async function act(action: string, extra: object = {}, close = true) {
   busy.value = true
   error.value = ''
   try {
-    await command({ action, key_id: selected.value, version: data.value?.version, acknowledge: acknowledge.value, ...extra })
+    await command({ action, key_id: selected.value, version: data.value?.version, ...extra })
     if (close)
       modal.value = ''
     await refresh()
@@ -206,12 +204,13 @@ onUnmounted(() => clearInterval(timer))
                 <BaseIconButton label="立即刷新" title="立即刷新" :disabled="busy || l.paused" @click="selected = l.key_id; act('check')">
                   <RefreshCw :size="16" />
                 </BaseIconButton>
-                <BaseButton size="sm" :disabled="busy" :title="l.paused ? '启用关联监测并重新建立基线' : '禁用关联监测，不影响宿主 Key'" @click="toggleLink(l)">
-                  {{ l.paused ? '启用' : '禁用' }}
-                </BaseButton>
-                <BaseButton size="sm" variant="destructive" :disabled="busy" title="删除关联" @click="open('delete', l)">
-                  删除
-                </BaseButton>
+                <BaseIconButton :label="l.paused ? '启用关联' : '禁用关联'" :title="l.paused ? '启用关联' : '禁用关联'" :disabled="busy" @click="toggleLink(l)">
+                  <Power v-if="l.paused" :size="16" />
+                  <PowerOff v-else :size="16" />
+                </BaseIconButton>
+                <BaseIconButton label="删除关联" title="删除关联" :disabled="busy" @click="open('delete', l)">
+                  <Trash2 :size="16" />
+                </BaseIconButton>
               </div>
             </td>
           </tr>
@@ -241,8 +240,6 @@ onUnmounted(() => clearInterval(timer))
       <p>
         确定删除“{{ link ? keyName(link) : '此 Key' }}”的关联吗？
       </p>
-      <p class="muted">仅删除本插件的关联记录，不会删除或停用宿主 Key，也不能撤销已执行的重置。</p>
-      <BaseCheckbox v-model="acknowledge" label="确认删除此关联" />
     </template>
     <template #footer>
       <span v-if="modal === 'add'" class="muted">仅建立基线，不清零</span><BaseButton :disabled="busy" @click="modal = ''">
@@ -251,7 +248,7 @@ onUnmounted(() => clearInterval(timer))
       <BaseButton v-if="modal === 'add'" variant="primary" :loading="busy" :disabled="!keyId || !preview || previewBusy" @click="act('add', { key_id: keyId, account_id: accountId })">
         添加
       </BaseButton>
-      <BaseButton v-if="modal === 'delete'" variant="destructive" :disabled="!acknowledge || busy" @click="act('delete')">
+      <BaseButton v-if="modal === 'delete'" variant="destructive" :disabled="busy" @click="act('delete', { acknowledge: true })">
         删除关联
       </BaseButton>
     </template>
