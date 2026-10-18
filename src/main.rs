@@ -76,8 +76,8 @@ fn registration() -> ManagementRegistration {
             .collect(),
         pages: vec![ManagementPage {
             id: "follow".into(),
-            title: "密钥周额度跟随账号重置".into(),
-            description: Some("确认账号新周期后清零关联密钥周预算".into()),
+            title: "额度跟随重置".into(),
+            description: Some("密钥额度跟随账号重置".into()),
             entry: "web/index.html".into(),
             icon: None,
         }],
