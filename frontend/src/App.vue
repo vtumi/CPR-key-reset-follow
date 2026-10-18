@@ -4,9 +4,9 @@ import { BaseButton, BaseCheckbox, BaseIconButton, BaseModal, BaseSelect, BaseTa
 import { Plus, RefreshCw } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { command, load } from './api/modules/follow'
-import { displayDate, money, percent, subscriptionLabel } from './display'
-import ProviderIconGroup from './components/ProviderIconGroup.vue'
 import AccountPlanBadge from './components/AccountPlanBadge.vue'
+import ProviderIconGroup from './components/ProviderIconGroup.vue'
+import { displayDate, money, percent, subscriptionLabel } from './display'
 
 const data = ref<Snapshot>()
 const busy = ref(false)
@@ -239,7 +239,9 @@ onUnmounted(() => clearInterval(timer))
       </p>
     </template>
     <template v-else-if="modal === 'delete'">
-      <p>确定删除“{{ link ? keyName(link) : '此 Key' }}”的关联吗？</p>
+      <p>
+        确定删除“{{ link ? keyName(link) : '此 Key' }}”的关联吗？
+      </p>
       <p class="muted">仅删除本插件的关联记录，不会删除或停用宿主 Key，也不能撤销已执行的重置。</p>
       <BaseCheckbox v-model="acknowledge" label="确认删除此关联" />
     </template>
