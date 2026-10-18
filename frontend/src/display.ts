@@ -13,6 +13,48 @@ export function displayDate(value: number | null | undefined, full = false): str
   return formatted
 }
 
+// 订阅只展示宿主账号目录提供的类型；缺失时不能从使用率推断套餐。
+export function subscriptionLabel(planType?: string | null, authenticationKind?: string | null): string {
+  if (authenticationKind?.toLowerCase() === 'api_key')
+    return 'API'
+  const plan = planType?.trim()
+  if (!plan)
+    return '—'
+  switch (plan.toLowerCase()) {
+    case 'free': return 'Free'
+    case 'plus': return 'Plus'
+    case 'pro': return 'Pro'
+    case 'prolite': return 'Pro Lite'
+    default: return plan
+  }
+}
+
+export function subscriptionStyle(planType?: string | null): string {
+  switch (planType?.trim().toLowerCase()) {
+    case 'free': return 'free'
+    case 'plus': return 'plus'
+    case 'pro': return 'pro'
+    case 'prolite': return 'prolite'
+    default: return 'other'
+  }
+}
+
+export function providerTypeLabel(provider?: string | null, authenticationKind?: string | null): string {
+  const normalized = provider?.trim()
+  const name = normalized?.toLowerCase() === 'openai'
+    ? 'OpenAI'
+    : normalized?.toLowerCase() === 'xai'
+      ? 'xAI'
+      : normalized || '—'
+  const kind = authenticationKind?.trim()
+  const auth = kind?.toLowerCase() === 'oauth'
+    ? 'OAuth'
+    : kind?.toLowerCase() === 'api_key'
+      ? 'API Key'
+      : kind || '—'
+  return `${name} / ${auth}`
+}
+
 export function money(value: string | undefined): string {
   if (value == null || !Number.isFinite(Number(value)))
     return '暂无数据'
