@@ -43,7 +43,7 @@ jobs:
       - run: pnpm --dir frontend test
       - run: pnpm --dir frontend build
       - run: cargo build --release --locked
-      - name: 构建 CPR v3.29.1 打包工具
+      - name: Build CPR Plugin Packaging CLI
         run: |
           git init /tmp/cpr-sdk
           git -C /tmp/cpr-sdk remote add origin https://github.com/zyycn/codex-proxy-rs.git
