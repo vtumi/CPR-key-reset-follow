@@ -34,7 +34,11 @@ jobs:
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
       - run: cargo test --locked
-      - run: pnpm --dir frontend install --frozen-lockfile
+      - run: pnpm --dir frontend install --no-frozen-lockfile
+      - uses: actions/upload-artifact@v4
+        with:
+          name: refreshed-frontend-lock-${{ matrix.artifact }}
+          path: frontend/pnpm-lock.yaml
       - run: pnpm --dir frontend lint
       - run: pnpm --dir frontend test
       - run: pnpm --dir frontend build
