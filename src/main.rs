@@ -98,11 +98,6 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
             ensure_current_link(&engine.state, key, cmd.account_id.as_deref())?;
         }
         match cmd.action.as_str() {
-            "preview" => {
-                return Ok(
-                    json!({"sample": engine.fresh(cmd.account_id.as_deref().ok_or_else(|| fault("请选择账号"))?).await?}),
-                );
-            }
             "add" => {
                 engine
                     .add(

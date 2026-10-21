@@ -8,7 +8,7 @@
 
 ## 安装
 
-要求 **官方 Codex Proxy RS ≥3.29.1 且 <4.0.0 · Linux x86_64 / ARM64**。SDK 与打包工具基于固定的官方 v3.29.1 提交构建；CI 通过不代表已完成真实宿主安装联调。
+要求 **官方 Codex Proxy RS ≥3.29.7 且 <3.30.0 · Linux x86_64 / ARM64**。SDK 与打包工具固定官方 v3.29.7 提交 `78bc57c5cf24b01a38e985cdd739bb4ae89ce11f`，使用 RPC v5、Management v2、Maintenance v1；旧版 CPR 3.29.x 需继续使用相应旧插件。CI 通过不代表已完成真实宿主安装联调。
 
 1. 打开宿主的 **插件管理 → 安装插件 → GitHub**。
 2. 仓库填写 `vtumi/CPR-key-reset-follow`。版本标签留空即可查询最新正式版，无需勾选“允许查询预发行版”。

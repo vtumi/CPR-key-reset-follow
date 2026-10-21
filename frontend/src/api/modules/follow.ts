@@ -1,6 +1,5 @@
 import { request } from '../request'
 
-export interface Sample { reset: number }
 export interface Budget { weekly_limit_usd: string, weekly_used_usd: string }
 export interface Link {
   key_id: string
@@ -21,4 +20,4 @@ export interface Snapshot {
   budgets: Record<string, Budget>
 }
 export const load = () => request<Snapshot>('GET', 'state')
-export const command = (body: object) => request<{ ok: boolean, sample?: Sample }>('POST', 'action', body)
+export const command = (body: object) => request<{ ok: boolean }>('POST', 'action', body)

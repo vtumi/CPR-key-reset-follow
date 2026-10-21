@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import type { Link, Sample, Snapshot } from './api/modules/follow'
+import type { Link, Snapshot } from './api/modules/follow'
 import { BaseButton, BaseIconButton, BaseModal, BaseSelect, BaseSwitch, BaseTag } from '@codex-proxy/ui'
 import { Plus, Power, PowerOff, RefreshCw, Trash2 } from '@lucide/vue'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { command, load } from './api/modules/follow'
 import AccountPlanBadge from './components/AccountPlanBadge.vue'
 import ProviderIconGroup from './components/ProviderIconGroup.vue'
@@ -15,9 +15,6 @@ const modal = ref('')
 const selected = ref('')
 const keyId = ref('')
 const accountId = ref('')
-const preview = ref<Sample>()
-const previewError = ref('')
-const previewBusy = ref(false)
 const modalOpen = computed({ get: () => !!modal.value, set: (value) => {
   if (!value)
     modal.value = ''
@@ -82,8 +79,6 @@ function open(kind: string, l?: Link) {
   if (kind === 'add') {
     keyId.value = ''
     accountId.value = ''
-    preview.value = undefined
-    previewError.value = ''
   }
 }
 async function act(action: string, extra: object = {}) {
@@ -104,28 +99,6 @@ async function toggleLink(l: Link) {
   selected.value = l.key_id
   await act(l.paused ? 'resume' : 'pause')
 }
-let previewGeneration = 0
-watch(accountId, async (id) => {
-  const generation = ++previewGeneration
-  preview.value = undefined
-  previewError.value = ''
-  if (!id)
-    return
-  previewBusy.value = true
-  try {
-    const result = await command({ action: 'preview', account_id: id })
-    if (generation === previewGeneration)
-      preview.value = result.sample
-  }
-  catch (e) {
-    if (generation === previewGeneration)
-      previewError.value = (e as Error).message
-  }
-  finally {
-    if (generation === previewGeneration)
-      previewBusy.value = false
-  }
-})
 let timer: ReturnType<typeof setInterval>
 onMounted(() => {
   refresh()
@@ -228,12 +201,6 @@ onUnmounted(() => clearInterval(timer))
         该密钥未设周限额，清零无实际作用
       </p>
       <label class="field">账号<BaseSelect v-model="accountId" :options="accounts" filterable placeholder="选择账号" :disabled="busy" /></label>
-      <p v-if="previewBusy" role="status">
-        正在识别周窗口
-      </p>
-      <p v-else-if="previewError" class="error">
-        {{ previewError }}
-      </p>
     </template>
     <template v-else-if="modal === 'delete'">
       <p>
@@ -244,7 +211,7 @@ onUnmounted(() => clearInterval(timer))
       <BaseButton :disabled="busy" @click="modal = ''">
         取消
       </BaseButton>
-      <BaseButton v-if="modal === 'add'" variant="primary" :loading="busy" :disabled="!keyId || !preview || previewBusy" @click="act('add', { key_id: keyId, account_id: accountId })">
+      <BaseButton v-if="modal === 'add'" variant="primary" :loading="busy" :disabled="!keyId || !accountId" @click="act('add', { key_id: keyId, account_id: accountId })">
         添加
       </BaseButton>
       <BaseButton v-if="modal === 'delete'" variant="destructive" :disabled="busy" @click="act('delete', { acknowledge: true })">
