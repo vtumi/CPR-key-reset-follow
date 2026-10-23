@@ -816,3 +816,151 @@ fn old_state_preserves_global_early_reset_default() {
     let restored: State = serde_json::from_value(serde_json::to_value(state).unwrap()).unwrap();
     assert!(!restored.links["key-a"].early_reset_enabled(restored.early_auto));
 }
+
+#[tokio::test]
+async fn stale_resume_cannot_roll_back_a_completed_cycle() {
+    let h = Fake::new();
+    setup(&h).await;
+    next(&h);
+    let mut engine = Engine::load(&h).await.unwrap();
+    engine.check("account-a", WEEK + 1000).await.unwrap();
+    engine
+        .action("key-a", "pause", false, WEEK + 2000)
+        .await
+        .unwrap();
+    let before = serde_json::to_value(&engine.state).unwrap();
+    {
+        let mut s = h.0.lock().unwrap();
+        s.time = 1_000_000;
+        s.reset_at = WEEK;
+        s.weekly_used.insert("key-a".into(), "7".into());
+    }
+    let result = engine.action("key-a", "resume", false, WEEK + 3000).await;
+    let after = serde_json::to_value(&engine.state).unwrap();
+    {
+        let mut s = h.0.lock().unwrap();
+        s.time = WEEK + 4000;
+        s.reset_at = WEEK * 2;
+    }
+    engine.check("account-a", WEEK + 4000).await.unwrap();
+    let s = h.0.lock().unwrap();
+    assert_eq!(s.resets, ["key-a", "key-b"]);
+    assert_eq!(s.weekly_used["key-a"], "7");
+    assert!(result.is_err());
+    assert_eq!(after, before);
+}
+
+#[tokio::test]
+async fn stale_changed_window_does_not_latch_pending_while_settling() {
+    for stale_time in [WEEK + 2000, WEEK + 301000] {
+        let h = Fake::new();
+        setup(&h).await;
+        next(&h);
+        let mut engine = Engine::load(&h).await.unwrap();
+        engine.check("account-a", WEEK + 1000).await.unwrap();
+        h.0.lock().unwrap().time = WEEK + 301000;
+        engine.check("account-a", WEEK + 301000).await.unwrap();
+        let before = serde_json::to_value(&engine.state.links).unwrap();
+        {
+            let mut s = h.0.lock().unwrap();
+            s.time = stale_time;
+            s.changed_window = true;
+        }
+        engine.check("account-a", WEEK + 401000).await.unwrap();
+        assert_eq!(serde_json::to_value(&engine.state.links).unwrap(), before);
+        assert_eq!(engine.state.accounts["account-a"].failures, 1);
+        {
+            let mut s = h.0.lock().unwrap();
+            s.time = WEEK + 601000;
+            s.changed_window = false;
+        }
+        engine.check("account-a", WEEK + 601000).await.unwrap();
+        assert!(matches!(
+            engine.state.links["key-a"].phase,
+            key_reset_follow::model::Phase::Tracking
+        ));
+        assert_eq!(h.0.lock().unwrap().resets, ["key-a", "key-b"]);
+    }
+}
+
+#[tokio::test]
+async fn baseline_refresh_rejects_regression_without_account_sample() {
+    let h = Fake::new();
+    setup(&h).await;
+    let mut engine = Engine::load(&h).await.unwrap();
+    engine
+        .action("key-a", "pause", false, 1_000_000)
+        .await
+        .unwrap();
+    assert!(engine.state.accounts["account-a"].sample.is_none());
+    h.0.lock().unwrap().time = 999_999;
+    let before = serde_json::to_value(&engine.state).unwrap();
+    assert!(
+        engine
+            .action("key-a", "resume", false, 1_000_001)
+            .await
+            .is_err()
+    );
+    assert!(engine.add("key-c", "account-a", 1_000_001).await.is_err());
+    assert_eq!(serde_json::to_value(&engine.state).unwrap(), before);
+}
+
+#[tokio::test]
+async fn newer_resume_can_recover_a_corrected_window_without_consuming_shared_sample() {
+    let h = Fake::new();
+    setup(&h).await;
+    let mut engine = Engine::load(&h).await.unwrap();
+    engine
+        .action("key-a", "pause", false, 1_000_000)
+        .await
+        .unwrap();
+    {
+        let mut s = h.0.lock().unwrap();
+        s.time = 2_000_000;
+        s.reset_at = WEEK - 300_000;
+    }
+    engine
+        .action("key-a", "resume", false, 2_000_000)
+        .await
+        .unwrap();
+    assert_eq!(engine.state.links["key-a"].baseline.reset, WEEK - 300_000);
+    assert!(engine.state.accounts["account-a"].sample.is_none());
+    assert!(h.0.lock().unwrap().resets.is_empty());
+    engine.check("account-a", 2_000_000).await.unwrap();
+    assert!(matches!(
+        engine.state.links["key-b"].pending,
+        Some(Pending::Confirm { .. })
+    ));
+}
+
+#[tokio::test]
+async fn stale_link_sample_cannot_mutate_settling_after_resume() {
+    let h = Fake::new();
+    setup(&h).await;
+    let mut engine = Engine::load(&h).await.unwrap();
+    engine
+        .action("key-a", "pause", false, 1_000_000)
+        .await
+        .unwrap();
+    {
+        let mut s = h.0.lock().unwrap();
+        s.time = 3_000_000;
+        s.reset_at = WEEK + 3_000_000;
+    }
+    engine
+        .action("key-a", "resume", false, 3_000_000)
+        .await
+        .unwrap();
+    let before = serde_json::to_value(&engine.state.links["key-a"]).unwrap();
+    {
+        let mut s = h.0.lock().unwrap();
+        s.time = 2_000_000;
+        s.reset_at = WEEK;
+    }
+    engine.check("account-a", 3_000_001).await.unwrap();
+    assert_eq!(
+        serde_json::to_value(&engine.state.links["key-a"]).unwrap(),
+        before
+    );
+    assert!(h.0.lock().unwrap().resets.is_empty());
+}

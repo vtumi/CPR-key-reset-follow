@@ -28,7 +28,28 @@ impl<'a, H: Host> Engine<'a, H> {
         if facts.account_id != account {
             return Err(fault("上游返回了其他账号的样本"));
         }
-        cycle::sample(&facts).map_err(fault)
+        let sample = cycle::sample(&facts).map_err(fault)?;
+        // 建立基线不能倒退；账号缓存可能尚未包含新增或恢复关联的观测。
+        let latest = self
+            .state
+            .accounts
+            .get(account)
+            .and_then(|a| a.sample.as_ref())
+            .map(|s| s.observed)
+            .into_iter()
+            .chain(
+                self.state
+                    .links
+                    .values()
+                    .filter(|l| l.account_id == account)
+                    .map(|l| l.baseline.observed),
+            )
+            .max();
+        if latest.is_some_and(|observed| sample.observed < observed) {
+            return Err(fault("上游仍返回旧样本，无法重新建立基线"));
+        }
+        // 不消耗账号共享样本，其他关联仍须独立处理本次周期变化。
+        Ok(sample)
     }
     pub async fn add(&mut self, key: &str, account: &str, now: i64) -> Result<(), PluginFault> {
         if self.state.links.contains_key(key) {
@@ -84,7 +105,15 @@ impl<'a, H: Host> Engine<'a, H> {
                 w.key.starts_with("codex:604800s")
                     && (w.key != "codex:604800s" || w.window_seconds != Some(604800))
             });
-            if facts.account_id == account_id && changed {
+            // 窗口异常也必须先检查账号观测时间，不能让旧响应锁住等待固定的关联。
+            let newer = facts.observed_at_ms.is_some_and(|observed| {
+                self.state
+                    .accounts
+                    .get(account_id)
+                    .and_then(|a| a.sample.as_ref())
+                    .is_none_or(|previous| observed > previous.observed)
+            });
+            if facts.account_id == account_id && newer && changed {
                 for link in self
                     .state
                     .links
@@ -170,6 +199,10 @@ impl<'a, H: Host> Engine<'a, H> {
             .values_mut()
             .filter(|l| l.account_id == account_id && !l.paused && l.pending.is_none())
         {
+            // 新增或恢复的基线可能比账号共享样本更新，旧观测不能推进等待阶段。
+            if sample.observed <= link.baseline.observed {
+                continue;
+            }
             if let Phase::Settling { candidate } = &mut link.phase {
                 // 下一个完整周周期已越过上次结束时间，可独立处理正常换周。
                 if cycle::classify(&link.baseline, &sample) == Decision::Normal {
