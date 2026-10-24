@@ -53,6 +53,8 @@ fn manifest_matches_target_contract() {
     let manifest_bytes = include_bytes!("../plugin.json");
     let manifest = gateway_plugin_sdk::Manifest::from_author_slice(manifest_bytes).unwrap();
     let raw: serde_json::Value = serde_json::from_slice(manifest_bytes).unwrap();
+    assert_eq!(manifest.version.to_string(), env!("CARGO_PKG_VERSION"));
+    assert_eq!(manifest.author.as_deref(), Some("tumi"));
     assert_eq!(gateway_plugin_sdk::PROTOCOL_VERSION, 5);
     assert_eq!(raw["engines"]["codex-proxy-rs"], ">=3.29.7");
     assert_eq!(raw["contributes"]["management"]["version"], 2);

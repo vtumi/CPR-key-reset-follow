@@ -1,24 +1,19 @@
-# v0.1.5 — Quota observation freshness fixes
+# v0.1.6
 
-## Fixes
+## 更新
 
-- Reject older quota observations before establishing a new or resumed association baseline, preventing a stale resume response from rolling back a completed cycle and triggering a duplicate reset.
-- Check account observation freshness before recording changed-window pending state, so stale responses cannot leave associations blocked while their weekly window is settling.
-- Ignore observations at or before an association baseline when advancing settling state, including after resume.
+- SDK 与打包工具升级到官方 CPR v3.31.1，固定提交 `06e1d8f0ac33d8633198d837c4f9017ad466f358`
+- 移除 CPR 宿主版本上限，保留最低版本 3.29.7
+- 插件显示作者设为 `tumi`，同步 Rust 与前端包的作者和版本信息
 
-## Preserved behavior
+## 兼容与升级
 
-- Equal-time explicit resume and recovery from a newer corrected window remain supported; establishing a baseline does not consume the shared account observation needed by other associations.
-- Unknown reset results still stop automatic retries, and pause/resume cannot clear that protection. Per-key early-reset settings and persisted state schema are unchanged.
+- 要求官方 Codex Proxy RS **≥3.29.7**，使用 RPC v5、Management v2、Maintenance v1；无版本上限不代表已经验证所有未来版本
+- 插件标识仍为 `ming321.key-reset-follow`，保留原有发布者命名空间、关联、设置和私有状态格式；本版本不改变周期判定或清零策略
+- Linux x86_64 与 ARM64 安装包及对应 SHA-256 文件由标签工作流生成，安装时选择与宿主架构匹配的归档
 
-## Compatibility
+## 验证
 
-- Official Codex Proxy RS **>=3.29.7 and <3.30.0**, using RPC v5, Management v2, and Maintenance v1.
-- SDK and packaging CLI remain pinned to official v3.29.7 commit `78bc57c5cf24b01a38e985cdd739bb4ae89ce11f`.
-- Linux x86_64 and ARM64 packages are produced by the tagged release workflow, with matching SHA-256 files. Install the archive matching your host architecture.
+本地验证覆盖格式检查、严格 all-target Clippy、全部 29 项 Rust 测试、release 编译、前端 lint、全部 6 项前端测试与生产构建；清单测试覆盖最低宿主、无版本上限、RPC 合同、作者和版本一致性
 
-## Verification
-
-Five added tests cover stale resume, stale changed-window pending state, missing account history, settling after resume, and preserved recovery behavior. Local verification covers all 29 Rust tests, formatting, strict all-target Clippy, release compilation, frontend lint, all 6 frontend tests, and the production frontend build. The tagged GitHub Actions workflow additionally builds and packages both Linux architectures.
-
-Real-host installation, upgrade, and state-preservation integration have **not** been revalidated for this release; local checks and CI do not replace that verification. No production host deployment is performed by this release.
+真实宿主安装、升级和状态保留尚未重新联调；本地检查与 CI 不能替代该验证。本次发布不执行生产部署

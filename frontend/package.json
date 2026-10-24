@@ -1,9 +1,10 @@
 {
   "name": "key-reset-follow-ui",
   "type": "module",
-  "version": "0.1.1",
+  "version": "0.1.6",
   "private": true,
   "packageManager": "pnpm@12.6.0",
+  "author": "tumi",
   "scripts": {
     "build": "vue-tsc --noEmit && vite build",
     "lint": "eslint .",
