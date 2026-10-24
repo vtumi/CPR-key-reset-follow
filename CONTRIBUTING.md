@@ -2,7 +2,8 @@
 
 ## 开发依据
 
-宿主与 SDK 固定官方 v3.29.7 提交 `78bc57c5cf24b01a38e985cdd739bb4ae89ce11f`，使用 RPC v5 / Management v2 / Maintenance v1，UI 使用官方 v0.3.0 发行包
+SDK 与打包工具固定官方 [v3.31.1](https://github.com/zyycn/codex-proxy-rs/releases/tag/v3.31.1) 提交 `06e1d8f0ac33d8633198d837c4f9017ad466f358`，SDK crate 版本为 0.1.0，UI 使用官方 v0.3.0 发行包
+宿主最低版本为 3.29.7，不设置版本上限；所需合同为 RPC v5 / Management v2 / Maintenance v1，升级 SDK 时须同时核对最低宿主与打包工具，不能仅凭宿主版本号推断合同兼容
 先阅读 [设计合同](docs/design.md)，周期判定与重置语义属于数据安全边界
 
 使用 Rust 1.99.1、Node.js 24 和 pnpm 12.6.0

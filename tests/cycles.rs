@@ -53,6 +53,8 @@ fn manifest_matches_target_contract() {
     let manifest_bytes = include_bytes!("../plugin.json");
     let manifest = gateway_plugin_sdk::Manifest::from_author_slice(manifest_bytes).unwrap();
     let raw: serde_json::Value = serde_json::from_slice(manifest_bytes).unwrap();
+    assert_eq!(gateway_plugin_sdk::PROTOCOL_VERSION, 5);
+    assert_eq!(raw["engines"]["codex-proxy-rs"], ">=3.29.7");
     assert_eq!(raw["contributes"]["management"]["version"], 2);
     assert_eq!(raw["contributes"]["maintenance"]["version"], 1);
     for (host, allowed) in [
@@ -63,8 +65,11 @@ fn manifest_matches_target_contract() {
         ("3.29.7", true),
         ("3.29.8", true),
         ("3.30.0-beta.1", false),
-        ("3.30.0", false),
-        ("4.0.0", false),
+        ("3.30.0", true),
+        ("3.31.1", true),
+        ("3.31.2-beta.1", false),
+        ("4.0.0", true),
+        ("99.0.0", true),
     ] {
         assert_eq!(
             manifest
