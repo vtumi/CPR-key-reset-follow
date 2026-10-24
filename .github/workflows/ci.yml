@@ -82,7 +82,7 @@ jobs:
           # 先在 GitHub 手工创建与当前 Tag 对应的 Release；此流程只上传附件。
           gh release view "$RELEASE_TAG" >/dev/null
           for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
-            archive="ming321.key-reset-follow-${RELEASE_TAG#v}-${target}.tar.gz"
+            archive="tumi.key-reset-follow-${RELEASE_TAG#v}-${target}.tar.gz"
             test -s "dist/$archive"
             test -s "dist/$archive.sha256"
             (cd dist && sha256sum --check "$archive.sha256")
