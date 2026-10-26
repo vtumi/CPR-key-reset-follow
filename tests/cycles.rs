@@ -56,8 +56,8 @@ fn manifest_matches_target_contract() {
     assert_eq!(manifest.plugin_id().unwrap(), "tumi.key-reset-follow");
     assert_eq!(manifest.version.to_string(), env!("CARGO_PKG_VERSION"));
     assert_eq!(manifest.author.as_deref(), Some("tumi"));
-    assert_eq!(gateway_plugin_sdk::PROTOCOL_VERSION, 5);
-    assert_eq!(raw["engines"]["codex-proxy-rs"], ">=3.29.7");
+    assert_eq!(gateway_plugin_sdk::PROTOCOL_VERSION, 7);
+    assert_eq!(raw["engines"]["codex-proxy-rs"], ">=3.33.0");
     assert_eq!(raw["contributes"]["management"]["version"], 2);
     assert_eq!(raw["contributes"]["maintenance"]["version"], 1);
     for (host, allowed) in [
@@ -65,12 +65,16 @@ fn manifest_matches_target_contract() {
         ("3.29.0", false),
         ("3.29.1", false),
         ("3.29.6", false),
-        ("3.29.7", true),
-        ("3.29.8", true),
+        ("3.29.7", false),
+        ("3.29.8", false),
         ("3.30.0-beta.1", false),
-        ("3.30.0", true),
-        ("3.31.1", true),
+        ("3.30.0", false),
+        ("3.31.1", false),
         ("3.31.2-beta.1", false),
+        ("3.32.0", false),
+        ("3.33.0-beta.1", false),
+        ("3.33.0", true),
+        ("3.33.1", true),
         ("4.0.0", true),
         ("99.0.0", true),
     ] {

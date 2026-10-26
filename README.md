@@ -8,7 +8,7 @@
 
 ## 安装
 
-要求 **官方 Codex Proxy RS ≥3.29.7 · Linux x86_64 / ARM64**，不设置宿主版本上限；宿主仍须支持 RPC v5、Management v2、Maintenance v1。SDK 与打包工具固定官方 [v3.31.1](https://github.com/zyycn/codex-proxy-rs/releases/tag/v3.31.1) 提交 `06e1d8f0ac33d8633198d837c4f9017ad466f358`；低于 CPR 3.29.7 需继续使用相应旧插件。无版本上限不代表已验证所有未来版本，CI 通过也不代表已完成真实宿主安装联调。
+要求 **官方 Codex Proxy RS ≥3.33.0 · Linux x86_64 / ARM64**，不设置宿主版本上限；宿主仍须支持 RPC v7、Management v2、Maintenance v1。SDK 与打包工具固定官方 [v3.33.0](https://github.com/zyycn/codex-proxy-rs/releases/tag/v3.33.0) 提交 `8c8618aa0f841638262262e3338c115bc075f125`；低于 CPR 3.33.0 需继续使用相应旧插件。无版本上限不代表已验证所有未来版本，CI 通过也不代表已完成真实宿主安装联调。
 
 插件标识为 **`tumi.key-reset-follow`**，作者为 `tumi`。
 

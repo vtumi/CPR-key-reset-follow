@@ -8,7 +8,7 @@
   "description": "密钥额度跟随账号重置",
   "license": "Apache-2.0",
   "engines": {
-    "codex-proxy-rs": ">=3.29.7"
+    "codex-proxy-rs": ">=3.33.0"
   },
   "runtime": "trustedProcess",
   "main": "bin/key-reset-follow",
