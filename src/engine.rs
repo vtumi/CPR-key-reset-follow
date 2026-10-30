@@ -68,6 +68,7 @@ impl<'a, H: Host> Engine<'a, H> {
             Link {
                 key_id: key.into(),
                 account_id: account.into(),
+                created_at: Some(now),
                 baseline,
                 paused: false,
                 early_auto: None,

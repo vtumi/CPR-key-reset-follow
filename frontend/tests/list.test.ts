@@ -15,7 +15,7 @@ it('搜索名称及账号名称、邮箱和 ID，忽略大小写及首尾空白'
     assert.deepEqual(ids(filterAndSort(items, query)), ['3'])
   assert.deepEqual(filterAndSort(items, 'not-found'), [])
   assert.equal(filterAndSort([{ ...items[0]!, account: '账号已删除', accountSearch: 'acct-3' }], '账号已删除').length, 1)
-  assert.deepEqual(ids(filterAndSort(items, '  ')), ['3', '1', '2'])
+  assert.deepEqual(ids(filterAndSort(items, '  ')), ['1', '2', '3'])
 })
 
 it('四种字段均支持双向排序，不改变原快照顺序', () => {
@@ -47,4 +47,10 @@ it('先筛选排序再分页，空结果及删除末页后回到有效页', () =
   assert.deepEqual(paginate(sorted.slice(0, 2), 2, 2), { currentPage: 1, rows: sorted.slice(0, 2) })
   assert.deepEqual(paginate([], 8, 20), { currentPage: 1, rows: [] })
   assert.equal(paginate(sorted, 0, 20).currentPage, 1)
+})
+
+it('默认按关联创建时间倒序，旧记录未知时间稳定置后', () => {
+  const rows = [{ ...items[0]!, created: 100 }, { ...items[1]!, created: null }, { ...items[2]!, created: 300 }]
+  assert.deepEqual(ids(filterAndSort(rows, '')), ['2', '3', '1'])
+  assert.deepEqual(ids(filterAndSort(rows, '', { key: 'name', direction: 'asc' })), ['2', '1', '3'])
 })

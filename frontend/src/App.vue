@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import type { Link, Snapshot } from './api/modules/follow'
+import type { DeleteTarget } from './bulk'
 import type { ListSort, SortKey } from './list'
-import { BaseButton, BaseIconButton, BaseInput, BaseModal, BaseSelect, BaseSwitch, BaseTablePagination, BaseTag } from '@codex-proxy/ui'
-import { ArrowDown, ArrowUp, ArrowUpDown, Plus, Power, PowerOff, Search, Trash2 } from '@lucide/vue'
+import { BaseButton, BaseCheckbox, BaseIconButton, BaseInput, BaseModal, BaseSelect, BaseSwitch, BaseTablePagination, BaseTag } from '@codex-proxy/ui'
+import { Plus, Power, PowerOff, Search, Trash2, Triangle } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { command, load } from './api/modules/follow'
+import { deleteSequentially, reconcileSelection, togglePageSelection } from './bulk'
 import AccountPlanBadge from './components/AccountPlanBadge.vue'
 import ProviderIconGroup from './components/ProviderIconGroup.vue'
 import { displayResetDate, expectedKeyReset, money, subscriptionLabel } from './display'
@@ -19,6 +21,8 @@ const busy = ref(false)
 const error = ref('')
 const modal = ref('')
 const selected = ref('')
+const selection = ref<DeleteTarget[]>([])
+const deleteTargets = ref<DeleteTarget[]>([])
 const keyId = ref('')
 const accountId = ref('')
 const modalOpen = computed({ get: () => !!modal.value, set: (value) => {
@@ -50,13 +54,14 @@ const filteredRows = computed(() => filterAndSort(rows.value.map(l => ({
   account: accountDisplay(l),
   accountSearch: [account(l)?.name, account(l)?.email, l.account_id].filter(Boolean).join(' '),
   reset: resetAt(l),
+  created: l.created_at ?? null,
   status: status(l),
   link: l,
 })), search.value, sort.value))
 const paged = computed(() => paginate(filteredRows.value, page.value, pageSize.value))
 const pagination = computed(() => ({ currentPage: paged.value.currentPage, pageSize: pageSize.value, total: filteredRows.value.length }))
 const sortOptions = [
-  { value: '', label: '默认排序' },
+  { value: '', label: '创建时间倒序' },
   ...([{ key: 'name', label: '名称' }, { key: 'account', label: '账号' }, { key: 'reset', label: '重置时间' }, { key: 'status', label: '状态' }] as const)
     .flatMap(({ key, label }) => [{ value: `${key}:asc`, label: `${label}升序` }, { value: `${key}:desc`, label: `${label}降序` }]),
 ]
@@ -71,7 +76,44 @@ function changeSort(key: SortKey) {
   sort.value = sort.value?.key !== key ? { key, direction: 'asc' } : sort.value.direction === 'asc' ? { key, direction: 'desc' } : undefined
 }
 const ariaSort = (key: SortKey) => sort.value?.key === key ? sort.value.direction === 'asc' ? 'ascending' : 'descending' : 'none'
-const sortIcon = (key: SortKey) => sort.value?.key === key ? sort.value.direction === 'asc' ? ArrowUp : ArrowDown : ArrowUpDown
+const sortDirection = (key: SortKey) => sort.value?.key === key ? sort.value.direction : undefined
+const pageLinks = computed(() => paged.value.rows.map(row => row.link))
+const isSelected = (l: Link) => selection.value.some(item => item.key_id === l.key_id && item.account_id === l.account_id)
+const allSelected = computed(() => pageLinks.value.length > 0 && pageLinks.value.every(isSelected))
+const indeterminate = computed(() => pageLinks.value.some(isSelected) && !allSelected.value)
+function toggleSelection(l: Link) {
+  if (busy.value)
+    return
+  selection.value = isSelected(l) ? selection.value.filter(item => item.key_id !== l.key_id) : [...selection.value, { key_id: l.key_id, account_id: l.account_id }]
+}
+function toggleAll() {
+  if (!busy.value)
+    selection.value = togglePageSelection(selection.value, pageLinks.value)
+}
+watch(search, () => {
+  selection.value = []
+})
+watch(() => data.value?.state.links, (links) => {
+  if (links)
+    selection.value = reconcileSelection(selection.value, links)
+})
+async function deleteBatch() {
+  if (busy.value || !deleteTargets.value.length)
+    return
+  busy.value = true
+  error.value = ''
+  const result = await deleteSequentially(deleteTargets.value, target => command({ action: 'delete', ...target, acknowledge: true }))
+  // 仅移除已确认成功的旧身份；失败及未执行项由权威快照核对，不盲目重发。
+  selection.value = selection.value.filter(item => !result.completed.some(done => done.key_id === item.key_id && done.account_id === item.account_id))
+  let refreshError = ''
+  try {
+    data.value = await load()
+  }
+  catch (e) { refreshError = `页面刷新失败：${(e as Error).message}` }
+  modal.value = ''
+  error.value = [result.error ? `已确认删除 ${result.completed.length} 条，批量操作已停止：${result.error}` : '', refreshError].filter(Boolean).join('；')
+  busy.value = false
+}
 watch([search, sort, pageSize], () => {
   page.value = 1
 }, { flush: 'sync' })
@@ -117,6 +159,8 @@ function open(kind: string, l?: Link) {
   selected.value = l?.key_id || ''
   modal.value = kind
   error.value = ''
+  if (kind === 'bulk-delete')
+    deleteTargets.value = selection.value.map(item => ({ ...item }))
   if (kind === 'add') {
     keyId.value = ''
     accountId.value = ''
@@ -159,49 +203,64 @@ onUnmounted(() => clearInterval(timer))
       </BaseButton>
     </p>
     <div class="toolbar">
-      <BaseInput v-model="search" class="list-search" placeholder="搜索名称、账号" aria-label="搜索名称、账号" type="search">
+      <BaseInput v-model="search" class="list-search" :disabled="busy" placeholder="搜索名称、账号" aria-label="搜索名称、账号" type="search">
         <template #prefix>
           <Search :size="18" />
         </template>
       </BaseInput>
       <BaseSelect v-model="mobileSort" class="mobile-sort" :options="sortOptions" aria-label="列表排序" />
       <div class="tools toolbar-actions">
+        <BaseButton v-if="selection.length" variant="destructive" :disabled="busy" @click="open('bulk-delete')">
+          <Trash2 :size="16" />删除所选（{{ selection.length }}）
+        </BaseButton>
         <BaseButton variant="primary" :disabled="busy || !data" @click="open('add')">
           <Plus :size="16" />添加关联
         </BaseButton>
       </div>
     </div>
+    <div v-if="data && filteredRows.length" class="mobile-selection">
+      <BaseCheckbox label="选择当前页" show-label :model-value="allSelected" :indeterminate="indeterminate" :disabled="busy" @update:model-value="toggleAll" />
+    </div>
     <p v-if="!data && !error" class="empty" role="status">
       正在加载关联
     </p>
-    <div v-else-if="data && !rows.length" class="empty">
-      <p>尚未建立关联</p>
-      <small>选择密钥和账号，开始跟随重置</small>
-    </div>
     <div v-else-if="data && !filteredRows.length" class="empty" role="status">
-      <p>没有匹配的关联</p>
-      <small>试试其他名称或账号</small>
+      暂无关联
     </div>
     <div v-else-if="data" class="table-scroll">
       <table>
         <thead>
           <tr>
+            <th class="selection-cell">
+              <BaseCheckbox label="选择当前页" :model-value="allSelected" :indeterminate="indeterminate" :disabled="busy" @update:model-value="toggleAll" />
+            </th>
             <th v-for="column in [{ key: 'name' as const, label: '密钥名称' }, { key: 'account' as const, label: '账号' }, { key: 'status' as const, label: '状态' }]" :key="column.key" :aria-sort="ariaSort(column.key)">
               <button type="button" class="sort-button" @click="changeSort(column.key)">
-                {{ column.label }}<component :is="sortIcon(column.key)" :size="14" aria-hidden="true" />
+                {{ column.label }}
+                <span class="sort-indicators" aria-hidden="true">
+                  <Triangle :stroke-width="0" :class="{ active: sortDirection(column.key) === 'asc', faded: sortDirection(column.key) === 'desc' }" />
+                  <Triangle :stroke-width="0" class="descending" :class="{ active: sortDirection(column.key) === 'desc', faded: sortDirection(column.key) === 'asc' }" />
+                </span>
               </button>
             </th>
             <th>订阅</th><th>平台/类型</th><th>本周额度</th>
             <th :aria-sort="ariaSort('reset')">
               <button type="button" class="sort-button" @click="changeSort('reset')">
-                重置时间<component :is="sortIcon('reset')" :size="14" aria-hidden="true" />
+                重置时间
+                <span class="sort-indicators" aria-hidden="true">
+                  <Triangle :stroke-width="0" :class="{ active: sortDirection('reset') === 'asc', faded: sortDirection('reset') === 'desc' }" />
+                  <Triangle :stroke-width="0" class="descending" :class="{ active: sortDirection('reset') === 'desc', faded: sortDirection('reset') === 'asc' }" />
+                </span>
               </button>
             </th>
             <th>提前重置</th><th>操作</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="{ link: l } in paged.rows" :key="l.key_id">
+          <tr v-for="{ link: l } in paged.rows" :key="l.key_id" :class="{ 'selected-row': isSelected(l) }">
+            <td class="selection-cell" data-label="选择">
+              <BaseCheckbox :label="`选择 ${keyName(l)}`" :model-value="isSelected(l)" :disabled="busy" @update:model-value="toggleSelection(l)" />
+            </td>
             <td class="identity key-identity" data-label="密钥名称">
               <span class="usage-identity-primary" :title="keyName(l)">{{ keyName(l) }}</span>
             </td>
@@ -243,7 +302,7 @@ onUnmounted(() => clearInterval(timer))
                   <Power v-if="l.paused" :size="16" />
                   <PowerOff v-else :size="16" />
                 </BaseIconButton>
-                <BaseIconButton label="删除关联" title="删除关联" :disabled="busy" @click="open('delete', l)">
+                <BaseIconButton label="删除" title="删除" :disabled="busy" @click="open('delete', l)">
                   <Trash2 :size="16" />
                 </BaseIconButton>
               </div>
@@ -253,7 +312,6 @@ onUnmounted(() => clearInterval(timer))
       </table>
     </div>
     <div v-if="data" class="list-footer">
-      <span class="mobile-total">共 {{ filteredRows.length }} 条</span>
       <BaseTablePagination
         :pagination="pagination"
         :loading="busy"
@@ -262,7 +320,7 @@ onUnmounted(() => clearInterval(timer))
       />
     </div>
   </main>
-  <BaseModal v-model="modalOpen" :title="({ add: '添加关联', delete: '删除关联' })[modal] || '关联'" :dismissible="!busy" :draggable="false">
+  <BaseModal v-model="modalOpen" :title="({ 'add': '添加关联', 'delete': '删除关联', 'bulk-delete': '批量删除' })[modal] || '关联'" :dismissible="!busy" :draggable="false">
     <p v-if="error" role="alert" class="error">
       {{ error }}
     </p>
@@ -278,12 +336,18 @@ onUnmounted(() => clearInterval(timer))
         确定删除 {{ link ? keyName(link) : '此密钥' }} 的关联吗？
       </p>
     </template>
+    <template v-else-if="modal === 'bulk-delete'">
+      <p>确定删除选中的 {{ deleteTargets.length }} 条关联吗？</p>
+    </template>
     <template #footer>
       <BaseButton :disabled="busy" @click="modal = ''">
         取消
       </BaseButton>
       <BaseButton v-if="modal === 'add'" variant="primary" :loading="busy" :disabled="!keyId || !accountId" @click="act('add', { key_id: keyId, account_id: accountId })">
         添加
+      </BaseButton>
+      <BaseButton v-if="modal === 'bulk-delete'" variant="destructive" :loading="busy" :disabled="busy" @click="deleteBatch">
+        删除
       </BaseButton>
       <BaseButton v-if="modal === 'delete'" variant="destructive" :disabled="busy" @click="act('delete', { acknowledge: true })">
         删除关联

@@ -33,6 +33,9 @@ pub enum Pending {
 pub struct Link {
     pub key_id: String,
     pub account_id: String,
+    // 旧关联没有可靠创建时间，保留未知值而不从周期或事件记录推断。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<i64>,
     pub baseline: Sample,
     pub paused: bool,
     // None keeps compatibility with links saved before per-key controls existed.

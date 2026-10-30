@@ -964,3 +964,47 @@ async fn stale_link_sample_cannot_mutate_settling_after_resume() {
     );
     assert!(h.0.lock().unwrap().resets.is_empty());
 }
+
+#[tokio::test]
+async fn association_creation_time_survives_changes_and_restarts() {
+    let h = Fake::new();
+    let mut e = Engine::load(&h).await.unwrap();
+    h.0.lock().unwrap().time = 1234567;
+    e.add("key-a", "account-a", 1234567).await.unwrap();
+    assert_eq!(e.state.links["key-a"].created_at, Some(1234567));
+    h.0.lock().unwrap().time = 2000000;
+    e.action("key-a", "pause", false, 2000000).await.unwrap();
+    h.0.lock().unwrap().time = 3000000;
+    e.action("key-a", "resume", false, 3000000).await.unwrap();
+    e.set_early_auto("key-a", false).await.unwrap();
+    let e = Engine::load(&h).await.unwrap();
+    assert_eq!(e.state.links["key-a"].created_at, Some(1234567));
+    let value = serde_json::to_value(&e.state).unwrap();
+    let restored: State = serde_json::from_value(value).unwrap();
+    assert_eq!(restored.links["key-a"].created_at, Some(1234567));
+}
+
+#[tokio::test]
+async fn legacy_association_creation_time_remains_unknown() {
+    let h = Fake::new();
+    setup(&h).await;
+    let mut value = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
+    value["links"]["key-a"]
+        .as_object_mut()
+        .unwrap()
+        .remove("created_at");
+    let restored: State = serde_json::from_value(value).unwrap();
+    assert_eq!(restored.links["key-a"].created_at, None);
+    h.0.lock().unwrap().state = restored;
+    let mut e = Engine::load(&h).await.unwrap();
+    h.0.lock().unwrap().time = 2000000;
+    e.action("key-a", "pause", false, 2000000).await.unwrap();
+    h.0.lock().unwrap().time = 3000000;
+    e.action("key-a", "resume", false, 3000000).await.unwrap();
+    assert_eq!(e.state.links["key-a"].created_at, None);
+    h.0.lock().unwrap().time = 4000000;
+    e.action("key-a", "delete", true, 4000000).await.unwrap();
+    h.0.lock().unwrap().time = 5000000;
+    e.add("key-a", "account-a", 5000000).await.unwrap();
+    assert_eq!(e.state.links["key-a"].created_at, Some(5000000));
+}

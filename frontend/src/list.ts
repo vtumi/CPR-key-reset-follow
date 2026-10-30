@@ -6,6 +6,7 @@ export interface ListItem {
   account: string
   accountSearch: string
   reset: number | null
+  created?: number | null
   status: '正常' | '异常' | '禁用'
 }
 
@@ -15,8 +16,14 @@ const statusOrder = { 正常: 0, 异常: 1, 禁用: 2 }
 export function filterAndSort<T extends ListItem>(items: T[], search: string, sort?: ListSort): T[] {
   const query = search.trim().toLocaleLowerCase()
   const result = items.filter(item => !query || [item.name, item.account, item.accountSearch].some(value => value.toLocaleLowerCase().includes(query)))
-  if (!sort)
-    return result
+  if (!sort) {
+    // 旧记录没有可靠创建时间，统一放到新记录之后并按身份稳定排序。
+    return result.sort((a, b) => {
+      if (a.created == null || b.created == null)
+        return a.created == null && b.created == null ? collator.compare(a.id, b.id) : a.created == null ? 1 : -1
+      return b.created - a.created || collator.compare(a.id, b.id)
+    })
+  }
   return result.sort((a, b) => {
     let compared: number
     if (sort.key === 'reset') {

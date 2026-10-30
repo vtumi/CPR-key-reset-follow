@@ -190,6 +190,7 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
                 json!({
                     "key_id": link.key_id,
                     "account_id": link.account_id,
+                    "created_at": link.created_at,
                     "baseline": { "reset": link.baseline.reset },
                     "paused": link.paused,
                     "early_auto": link.early_auto,
@@ -301,6 +302,7 @@ mod tests {
             Link {
                 key_id: "key-1".into(),
                 account_id: "account-a".into(),
+                created_at: None,
                 baseline: Sample {
                     observed: 1,
                     reset: 2,

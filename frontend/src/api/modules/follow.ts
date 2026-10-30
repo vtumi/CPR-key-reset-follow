@@ -4,6 +4,7 @@ export interface Budget { weekly_limit_usd: string, weekly_used_usd: string }
 export interface Link {
   key_id: string
   account_id: string
+  created_at?: number | null
   baseline: { reset: number }
   paused: boolean
   early_auto: boolean | null
