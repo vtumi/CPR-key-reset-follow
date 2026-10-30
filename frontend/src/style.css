@@ -11,8 +11,13 @@ small { display: block; margin-top: 5px; font-size: 12px; line-height: 1.5; }
 .table-scroll { width: 100%; min-height: 0; flex: 1; overflow: auto; }
 table { width: 100%; min-width: 1220px; border-collapse: collapse; }
 th { font-weight: 500; text-align: left; font-size: 12px; white-space: nowrap; padding: 12px 14px; background: var(--cp-color-bg-layout); }
-td { padding: 23px 14px; border-bottom: 1px solid var(--cp-color-border-secondary); vertical-align: middle; }
-tbody tr:last-child td { border-bottom: 0; }
+td { padding: 8px 14px; vertical-align: middle; }
+/* 与宿主表格一致：偶数行交替底色，选中及悬停状态优先，不绘制记录分割线。 */
+tbody tr { height: var(--cp-table-row-height, 60px); background: var(--cp-table-row-bg); }
+tbody tr:nth-child(even) { background: var(--cp-table-row-stripe-bg); }
+tbody tr:hover { background: var(--cp-table-row-hover-bg); }
+tbody tr.selected-row { background: var(--cp-table-row-selected-bg); }
+tbody tr.selected-row:hover { background: var(--cp-table-row-selected-hover-bg); }
 th:first-child { border-radius: 7px 0 0 7px; } th:last-child { border-radius: 0 7px 7px 0; }
 .identity { max-width: 260px; min-width: 120px; }
 .key-identity { min-width: 115px; max-width: 185px; }
@@ -38,8 +43,9 @@ p { margin: 8px 0; line-height: 1.7; overflow-wrap: anywhere; }
   .toolbar-actions { margin-left: auto; } thead { display: none; }
   .table-scroll { overflow: auto; }
   table, tbody, tr, td { display: block; width: 100%; min-width: 0; }
-  tr { position: relative; padding: 20px 0; border-bottom: 1px solid var(--cp-color-border-secondary); } tr:last-child { border-bottom: 0; }
-  td { padding: 8px 0; border: 0; } .identity { max-width: none; padding: 8px 0; min-width: 0; } .key-identity { padding-right: 78px; }
+  tr { position: relative; padding: 12px 0; }
+  tbody tr { height: auto; }
+  td { padding: 6px 0; border: 0; } .identity { max-width: none; padding: 6px 0; min-width: 0; } .key-identity { padding-right: 78px; }
   td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
   td[data-label]::before { content: attr(data-label); color: var(--cp-color-text-secondary); font-size: 12px; flex-shrink: 0; } .identity .usage-identity-primary { text-align: right; } .account-identity { flex-wrap: wrap; }
   .numeric .limit { display: inline; font-size: inherit; } .reset-time { flex-wrap: wrap; } .reset-time small { width: 100%; text-align: right; }
@@ -56,7 +62,6 @@ p { margin: 8px 0; line-height: 1.7; overflow-wrap: anywhere; }
 /* 与宿主 API 密钥页一致，表格滚动，分页固定在容器底部，不额外添加分割线。 */
 .list-footer { margin-top: auto; flex-shrink: 0; }
 .selection-cell { width: 44px; min-width: 44px; }
-.selected-row { background: var(--cp-color-primary-bg); }
 .sort-indicators { display: inline-flex; flex: none; flex-direction: column; gap: 1px; transform: translateY(-1px); }
 .sort-indicators svg { width: 5px; height: 5px; fill: currentColor; color: var(--cp-color-text-tertiary); }
 .sort-indicators .descending { transform: rotate(180deg); }
