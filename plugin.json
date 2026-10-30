@@ -3,7 +3,7 @@
   "publisher": "tumi",
   "name": "key-reset-follow",
   "displayName": "跟随重置",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "author": "tumi",
   "description": "密钥额度跟随账号重置",
   "license": "Apache-2.0",
