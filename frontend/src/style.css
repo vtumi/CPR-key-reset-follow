@@ -9,15 +9,19 @@ body { margin: 0; } #app { min-height: inherit; } * { box-sizing: border-box; }
 .muted, small, th, dt, .limit { color: var(--cp-color-text-secondary); }
 small { display: block; margin-top: 5px; font-size: 12px; line-height: 1.5; }
 .table-scroll { width: 100%; min-height: 0; flex: 1; overflow: auto; }
-table { width: 100%; min-width: 1220px; border-collapse: collapse; }
+table { width: 100%; min-width: 1220px; border-collapse: separate; border-spacing: 0; }
 th { font-weight: 500; text-align: left; font-size: 12px; white-space: nowrap; padding: 12px 14px; background: var(--cp-color-bg-layout); }
 td { padding: 8px 14px; vertical-align: middle; }
-/* 与宿主表格一致：偶数行交替底色，选中及悬停状态优先，不绘制记录分割线。 */
-tbody tr { height: var(--cp-table-row-height, 60px); background: var(--cp-table-row-bg); }
-tbody tr:nth-child(even) { background: var(--cp-table-row-stripe-bg); }
-tbody tr:hover { background: var(--cp-table-row-hover-bg); }
-tbody tr.selected-row { background: var(--cp-table-row-selected-bg); }
-tbody tr.selected-row:hover { background: var(--cp-table-row-selected-hover-bg); }
+/* 与宿主表格一致：透明单元格边框留出行间距，背景裁剪后保留两端圆角。 */
+tbody tr { height: var(--cp-table-row-height, 60px); --row-bg: var(--cp-table-row-bg); }
+tbody td { border-block: 3px solid transparent; background: var(--row-bg); background-clip: padding-box; }
+tbody tr:first-child > td { border-top-width: 6px; }
+tbody td:first-child { border-radius: var(--cp-border-radius, 8px) 0 0 var(--cp-border-radius, 8px); }
+tbody td:last-child { border-radius: 0 var(--cp-border-radius, 8px) var(--cp-border-radius, 8px) 0; }
+tbody tr:nth-child(even) { --row-bg: var(--cp-table-row-stripe-bg); }
+tbody tr:hover { --row-bg: var(--cp-table-row-hover-bg); }
+tbody tr.selected-row { --row-bg: var(--cp-table-row-selected-bg); }
+tbody tr.selected-row:hover { --row-bg: var(--cp-table-row-selected-hover-bg); }
 th:first-child { border-radius: 7px 0 0 7px; } th:last-child { border-radius: 0 7px 7px 0; }
 .identity { max-width: 260px; min-width: 120px; }
 .key-identity { min-width: 115px; max-width: 185px; }
@@ -44,7 +48,11 @@ p { margin: 8px 0; line-height: 1.7; overflow-wrap: anywhere; }
   .table-scroll { overflow: auto; }
   table, tbody, tr, td { display: block; width: 100%; min-width: 0; }
   tr { position: relative; padding: 12px 0; }
-  tbody tr { height: auto; }
+  /* 窄屏按整张记录卡片裁剪背景，避免各字段之间出现桌面单元格间距。 */
+  tbody tr { height: auto; border-block: 3px solid transparent; border-radius: var(--cp-border-radius, 8px); background: var(--row-bg); background-clip: padding-box; }
+  tbody tr:first-child { border-top-width: 6px; }
+  tbody td, tbody tr:first-child > td { border: 0; border-radius: 0; background: transparent; }
+  tbody td:first-child, tbody td:last-child { border-radius: 0; }
   td { padding: 6px 0; border: 0; } .identity { max-width: none; padding: 6px 0; min-width: 0; } .key-identity { padding-right: 78px; }
   td[data-label] { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
   td[data-label]::before { content: attr(data-label); color: var(--cp-color-text-secondary); font-size: 12px; flex-shrink: 0; } .identity .usage-identity-primary { text-align: right; } .account-identity { flex-wrap: wrap; }
