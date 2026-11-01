@@ -9,8 +9,8 @@ export default defineConfig({
   plugins: [vue(), tailwind(), ui(), {
     name: 'plugin-classic-entry',
     generateBundle() {
-      // 宿主隔离页只接受经典脚本，不能直接交付 Vite 的 module 入口。
-      this.emitFile({ type: 'asset', fileName: 'index.html', source: '<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./app.css"></head><body><div id="app"></div><script defer src="./app.js"></script></body></html>' })
+      // 宿主隔离页只接受经典脚本；显式声明 cp 前缀，兼容新宿主默认 z 的主题桥接。
+      this.emitFile({ type: 'asset', fileName: 'index.html', source: '<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="codex-proxy-ui-theme-prefix" content="cp"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="./app.css"></head><body><div id="app"></div><script defer src="./app.js"></script></body></html>' })
     },
   }],
   build: {

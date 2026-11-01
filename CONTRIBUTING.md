@@ -4,6 +4,7 @@
 
 SDK 与打包工具固定官方 [v3.33.0](https://github.com/zyycn/codex-proxy-rs/releases/tag/v3.33.0) 提交 `8c8618aa0f841638262262e3338c115bc075f125`，SDK crate 版本为 0.1.0，UI 使用官方 v0.3.0 发行包
 宿主最低版本为 3.33.0，不设置版本上限；所需合同为 RPC v7 / Management v2 / Maintenance v1，升级 SDK 时须同时核对最低宿主与打包工具，不能仅凭宿主版本号推断合同兼容
+管理页入口（开发 HTML 和打包生成的经典脚本 HTML）必须声明 `<meta name="codex-proxy-ui-theme-prefix" content="cp">`，与当前官方 UI v0.3.0 和页面 CSS 的 `--cp-*` 前缀保持一致。CPR v3.37.2 的主题桥接默认使用 `z`，未声明会导致颜色、表格背景及组件主题变量失效；旧宿主忽略该元数据，不需为此升级后端 SDK 或改变最低宿主版本。
 先阅读 [设计合同](docs/design.md)，周期判定与重置语义属于数据安全边界
 
 使用 Rust 1.99.1、Node.js 24 和 pnpm 12.6.0
