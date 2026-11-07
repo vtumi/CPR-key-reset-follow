@@ -17,7 +17,7 @@ checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 [[package]]
 name = "gateway-plugin-sdk"
 version = "0.1.0"
-source = "git+https://github.com/zyycn/codex-proxy-rs?rev=8c8618aa0f841638262262e3338c115bc075f125#8c8618aa0f841638262262e3338c115bc075f125"
+source = "git+https://github.com/zyycn/codex-proxy-rs?rev=ba3baddbda7293d1d76ea066dd5e42298618c15a#ba3baddbda7293d1d76ea066dd5e42298618c15a"
 dependencies = [
  "base64",
  "semver",
@@ -35,7 +35,7 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "key-reset-follow"
-version = "0.2.2"
+version = "0.2.3"
 dependencies = [
  "gateway-plugin-sdk",
  "serde",

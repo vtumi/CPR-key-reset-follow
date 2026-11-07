@@ -38,9 +38,6 @@ pub struct Link {
     pub created_at: Option<i64>,
     pub baseline: Sample,
     pub paused: bool,
-    // None keeps compatibility with links saved before per-key controls existed.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub early_auto: Option<bool>,
     pub pending: Option<Pending>,
     pub events: VecDeque<Event>,
     #[serde(default)]
@@ -60,10 +57,6 @@ impl Default for Phase {
     }
 }
 impl Link {
-    pub fn early_reset_enabled(&self, legacy_default: bool) -> bool {
-        self.early_auto.unwrap_or(legacy_default)
-    }
-
     pub fn event(&mut self, at: i64, reason: impl Into<String>) {
         self.events.push_back(Event {
             at,
@@ -74,26 +67,33 @@ impl Link {
         }
     }
 }
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Activation {
+    pub cycle: Sample,
+    pub anchor: Option<Sample>,
+    pub candidate: Option<Sample>,
+    pub outcome: ActivationOutcome,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivationOutcome {
+    Pending,
+    Unknown,
+    Succeeded,
+    Unconfirmed,
+}
 #[derive(Clone, Default, Serialize, Deserialize)]
 pub struct Account {
+    #[serde(default)]
+    pub activation: Option<Activation>,
     pub sample: Option<Sample>,
     pub next_check: i64,
     pub failure_since: Option<i64>,
     pub failures: u32,
     pub error: Option<String>,
 }
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct State {
-    pub early_auto: bool,
     pub links: BTreeMap<String, Link>,
     pub accounts: BTreeMap<String, Account>,
-}
-impl Default for State {
-    fn default() -> Self {
-        Self {
-            early_auto: true,
-            links: BTreeMap::new(),
-            accounts: BTreeMap::new(),
-        }
-    }
 }

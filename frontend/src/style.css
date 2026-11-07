@@ -32,7 +32,6 @@ th:first-child { border-radius: 7px 0 0 7px; } th:last-child { border-radius: 0 
 .amount { font-weight: 600; } .reset-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .row-actions { width: 88px; min-width: 88px; padding-right: 0; } .row-actions .tools { justify-content: flex-end; gap: 6px; }
 .status { gap: 7px; white-space: nowrap; }
-.early-reset-cell { white-space: nowrap; }
 .error { color: var(--cp-color-error-text); padding: 8px 0; overflow-wrap: anywhere; }
 .empty { flex: 1; padding: 72px 0; text-align: center; color: var(--cp-color-text-secondary); }
 .empty p { color: var(--cp-color-text); font-weight: 500; } .empty button { margin-top: 20px; }

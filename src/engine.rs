@@ -1,7 +1,7 @@
 use crate::{
     cycle::{self, Decision, Sample},
     host::{Host, fault},
-    model::{Link, Pending, Phase, State},
+    model::{Activation, ActivationOutcome, Link, Pending, Phase, State},
 };
 use gateway_plugin_sdk::PluginFault;
 
@@ -71,7 +71,6 @@ impl<'a, H: Host> Engine<'a, H> {
                 created_at: Some(now),
                 baseline,
                 paused: false,
-                early_auto: None,
                 pending: None,
                 events: Default::default(),
                 retry_at: 0,
@@ -85,20 +84,6 @@ impl<'a, H: Host> Engine<'a, H> {
             .event(now, "建立基线，不清零");
         self.save().await
     }
-    pub async fn set_early_auto(&mut self, key: &str, enabled: bool) -> Result<(), PluginFault> {
-        let legacy_default = self.state.early_auto;
-        let link = self
-            .state
-            .links
-            .get_mut(key)
-            .ok_or_else(|| fault("关联不存在，请刷新列表"))?;
-        if link.early_reset_enabled(legacy_default) != enabled {
-            link.early_auto = Some(enabled);
-            self.save().await?;
-        }
-        Ok(())
-    }
-
     pub async fn check(&mut self, account_id: &str, now: i64) -> Result<(), PluginFault> {
         let facts = self.host.refresh(account_id).await;
         if let Ok(facts) = &facts {
@@ -161,39 +146,33 @@ impl<'a, H: Host> Engine<'a, H> {
                 return self.save().await;
             }
         };
+        if let Some(activation) = &mut account.activation {
+            // 固定候选属于账号本次激活，不借用其他关联的恢复或新建基线
+            if activation.anchor.is_none()
+                && sample.observed > activation.cycle.observed
+                && cycle::classify(&activation.cycle, &sample) != Decision::Normal
+            {
+                if cycle::floating(&sample) {
+                    activation.candidate = None;
+                } else if let Some(first) = &activation.candidate {
+                    let shift = (i128::from(sample.reset) - i128::from(first.reset)).abs();
+                    if shift <= 1_000 && sample.observed - first.observed >= cycle::SETTLE_INTERVAL
+                    {
+                        activation.anchor = Some(sample.clone());
+                        activation.candidate = None;
+                    } else if shift > 1_000 {
+                        activation.candidate = Some(sample.clone());
+                    }
+                } else {
+                    activation.candidate = Some(sample.clone());
+                }
+            }
+        }
         account.sample = Some(sample.clone());
         account.next_check = now + 300_000;
         account.failure_since = None;
         account.failures = 0;
         account.error = None;
-        // 旧版关闭提前清零时可能留下人工确认；仅使用新的有效样本安全地跳过该周期。
-        // 不能清除结果未知等其他待处理状态，以免再次执行不可逆重置。
-        let legacy_default = self.state.early_auto;
-        {
-            for link in self.state.links.values_mut().filter(|l| {
-                !l.early_reset_enabled(legacy_default)
-                    && l.account_id == account_id
-                    && !l.paused
-                    && matches!(
-                        l.pending,
-                        Some(Pending::Confirm {
-                            reason: Decision::Early,
-                            ..
-                        })
-                    )
-            }) {
-                if cycle::classify(&link.baseline, &sample) == Decision::Early {
-                    link.baseline = sample.clone();
-                    link.phase = if cycle::floating(&sample) {
-                        Phase::default()
-                    } else {
-                        Phase::Tracking
-                    };
-                    link.pending = None;
-                    link.event(now, "提前重置已忽略，未清零");
-                }
-            }
-        }
         for link in self
             .state
             .links
@@ -233,9 +212,7 @@ impl<'a, H: Host> Engine<'a, H> {
             let decision = cycle::classify(&link.baseline, &sample);
             match decision {
                 Decision::Same => link.baseline.observed = sample.observed,
-                Decision::Normal | Decision::Early
-                    if decision == Decision::Normal || link.early_reset_enabled(legacy_default) =>
-                {
+                Decision::Normal | Decision::Early => {
                     link.pending = Some(Pending::Ready {
                         sample: sample.clone(),
                         reason: if decision == Decision::Normal {
@@ -246,25 +223,13 @@ impl<'a, H: Host> Engine<'a, H> {
                         .into(),
                     });
                 }
-                Decision::Early => {
-                    // 管理员关闭提前清零后，新周期属于正常观察结果，不进入人工处理。
-                    // 只更新基线，不能调用 reset；浮动窗口继续等待结束时间固定。
-                    link.baseline = sample.clone();
-                    link.phase = if cycle::floating(&sample) {
-                        Phase::default()
-                    } else {
-                        Phase::Tracking
-                    };
-                    link.event(now, "提前重置已忽略，未清零");
-                }
                 Decision::Unexplained => {
                     link.pending = Some(Pending::Confirm {
                         sample: sample.clone(),
                         reason: decision,
                     });
                 }
-                // Normal 已在上面的条件分支处理；显式分支满足 Rust 穷尽性检查。
-                Decision::Stale | Decision::Normal => {}
+                Decision::Stale => {}
             }
         }
         self.save().await?;
@@ -283,6 +248,27 @@ impl<'a, H: Host> Engine<'a, H> {
             .collect();
         for key in keys {
             self.execute(&key, now).await?;
+        }
+        let accounts: Vec<_> = self
+            .state
+            .accounts
+            .iter()
+            .filter(|(id, account)| {
+                account
+                    .activation
+                    .as_ref()
+                    .is_some_and(|a| a.outcome == ActivationOutcome::Pending)
+                    && self
+                        .state
+                        .links
+                        .values()
+                        .any(|l| &l.account_id == *id && !l.paused)
+            })
+            .take(4)
+            .map(|(id, _)| id.clone())
+            .collect();
+        for account in accounts {
+            self.activate_pending(&account, now).await?;
         }
         Ok(())
     }
@@ -325,6 +311,8 @@ impl<'a, H: Host> Engine<'a, H> {
         });
         self.save().await?;
         let result = self.host.reset(key).await;
+        let succeeded = result.is_ok();
+        let activation_sample = sample.clone();
         let link = self.state.links.get_mut(key).unwrap();
         match result {
             Ok(()) => {
@@ -340,6 +328,83 @@ impl<'a, H: Host> Engine<'a, H> {
                 link.event(now, "结果未知，已停止自动重试");
             }
         }
+        let account_id = link.account_id.clone();
+        if succeeded {
+            self.queue_activation(&account_id, activation_sample);
+        }
+        // 已确认清零与待激活一起落盘，重启不会丢掉尚未发送的任务
+        self.save().await?;
+        if succeeded {
+            self.activate_pending(&account_id, now).await?;
+        }
+        Ok(())
+    }
+    fn queue_activation(&mut self, account_id: &str, sample: Sample) {
+        let account = self.state.accounts.entry(account_id.into()).or_default();
+        if let Some(previous) = &account.activation {
+            // 漂移窗口与延迟完成的同账号 Key 共享一次尝试；固定前不猜测第二次提前重置
+            let reference = previous.anchor.as_ref().unwrap_or(&previous.cycle);
+            let decision = cycle::classify(reference, &sample);
+            if decision != Decision::Normal
+                && !(previous.anchor.is_some() && decision == Decision::Early)
+            {
+                return;
+            }
+        }
+        account.activation = Some(Activation {
+            cycle: sample.clone(),
+            anchor: None,
+            candidate: None,
+            outcome: ActivationOutcome::Pending,
+        });
+    }
+    async fn activate_pending(&mut self, account_id: &str, now: i64) -> Result<(), PluginFault> {
+        let Some(activation) = self
+            .state
+            .accounts
+            .get_mut(account_id)
+            .and_then(|a| a.activation.as_mut())
+        else {
+            return Ok(());
+        };
+        if activation.outcome != ActivationOutcome::Pending {
+            return Ok(());
+        }
+        let sample = activation.cycle.clone();
+        if i128::from(now) - i128::from(sample.observed) > 300_000 {
+            activation.outcome = ActivationOutcome::Unconfirmed;
+            return self.save().await;
+        }
+        activation.outcome = ActivationOutcome::Unknown;
+        // 先落盘再发模型请求；退出、超时或回执丢失均不能自动重发
+        self.save().await?;
+        let result = self.host.activate(account_id).await;
+        self.state
+            .accounts
+            .get_mut(account_id)
+            .unwrap()
+            .activation
+            .as_mut()
+            .unwrap()
+            .outcome = if result.is_ok() {
+            ActivationOutcome::Succeeded
+        } else {
+            ActivationOutcome::Unconfirmed
+        };
+        self.save().await?;
+        // 无论测试是否成功，都只刷新事实，不递归判定或再次清零
+        let fresh = self.fresh(account_id).await;
+        let account = self.state.accounts.get_mut(account_id).unwrap();
+        if let Ok(fresh) = fresh
+            && fresh.observed > sample.observed
+            && account
+                .sample
+                .as_ref()
+                .is_none_or(|old| fresh.observed > old.observed)
+        {
+            account.sample = Some(fresh);
+        }
+        account.next_check = now + 300_000;
         self.save().await
     }
     pub async fn action(

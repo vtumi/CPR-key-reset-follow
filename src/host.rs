@@ -25,6 +25,7 @@ pub trait Host: Sync {
         account: &str,
     ) -> impl Future<Output = Result<QuotaFacts, PluginFault>> + Send;
     fn budget(&self, key: &str) -> impl Future<Output = Result<KeyBudget, PluginFault>> + Send;
+    fn activate(&self, account: &str) -> impl Future<Output = Result<(), PluginFault>> + Send;
     fn reset(&self, key: &str) -> impl Future<Output = Result<(), PluginFault>> + Send;
 }
 pub struct SdkHost(pub HostClient);
@@ -87,6 +88,9 @@ impl Host for SdkHost {
                 client_key_id: key.into(),
             })
             .await
+    }
+    async fn activate(&self, account: &str) -> Result<(), PluginFault> {
+        crate::activation::activate(&self.0, account).await
     }
     async fn reset(&self, key: &str) -> Result<(), PluginFault> {
         self.0

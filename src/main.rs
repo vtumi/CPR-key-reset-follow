@@ -31,7 +31,6 @@ struct Command {
     action: String,
     key_id: Option<String>,
     account_id: Option<String>,
-    enabled: Option<bool>,
     #[serde(default)]
     acknowledge: bool,
 }
@@ -91,10 +90,7 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
         let cmd: Command =
             serde_json::from_slice(&call.payload).map_err(|_| fault("请求格式不正确"))?;
         let key = cmd.key_id.as_deref().unwrap_or("");
-        if matches!(
-            cmd.action.as_str(),
-            "pause" | "resume" | "delete" | "early_auto"
-        ) {
+        if matches!(cmd.action.as_str(), "pause" | "resume" | "delete") {
             ensure_current_link(&engine.state, key, cmd.account_id.as_deref())?;
         }
         match cmd.action.as_str() {
@@ -108,10 +104,6 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
                         now(),
                     )
                     .await?
-            }
-            "early_auto" => {
-                let enabled = cmd.enabled.ok_or_else(|| fault("缺少开关值"))?;
-                engine.set_early_auto(key, enabled).await?;
             }
             action => engine.action(key, action, cmd.acknowledge, now()).await?,
         }
@@ -193,7 +185,6 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
                     "created_at": link.created_at,
                     "baseline": { "reset": link.baseline.reset },
                     "paused": link.paused,
-                    "early_auto": link.early_auto,
                     "pending": pending.map(|kind| json!({ "kind": kind })),
                 }),
             )
@@ -216,7 +207,6 @@ async fn handle(call: TypedCall<ManagementRequest>) -> Result<Value, PluginFault
         .collect();
     Ok(json!({
         "state": {
-            "early_auto": engine.state.early_auto,
             "links": links,
             "accounts": observations,
         },
@@ -309,7 +299,6 @@ mod tests {
                     used: None,
                 },
                 paused: false,
-                early_auto: None,
                 pending: None,
                 events: Default::default(),
                 retry_at: 0,

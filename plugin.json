@@ -3,12 +3,12 @@
   "publisher": "tumi",
   "name": "key-reset-follow",
   "displayName": "跟随重置",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "author": "tumi",
   "description": "密钥额度跟随账号重置",
   "license": "Apache-2.0",
   "engines": {
-    "codex-proxy-rs": ">=3.33.0"
+    "codex-proxy-rs": ">=3.41.2"
   },
   "runtime": "trustedProcess",
   "main": "bin/key-reset-follow",

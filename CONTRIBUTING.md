@@ -2,8 +2,8 @@
 
 ## 开发依据
 
-SDK 与打包工具固定官方 [v3.33.0](https://github.com/zyycn/codex-proxy-rs/releases/tag/v3.33.0) 提交 `8c8618aa0f841638262262e3338c115bc075f125`，SDK crate 版本为 0.1.0，UI 使用官方 v0.3.0 发行包
-宿主最低版本为 3.33.0，不设置版本上限；所需合同为 RPC v7 / Management v2 / Maintenance v1，升级 SDK 时须同时核对最低宿主与打包工具，不能仅凭宿主版本号推断合同兼容
+SDK 与打包工具固定官方 [v3.41.2](https://github.com/zyycn/codex-proxy-rs/releases/tag/v3.41.2) 提交 `ba3baddbda7293d1d76ea066dd5e42298618c15a`，SDK crate 版本为 0.1.0，UI 使用官方 v0.3.0 发行包
+宿主最低版本为 3.41.2，不设置版本上限；所需合同为 RPC v7 / Management v2 / Maintenance v1，升级 SDK 时须同时核对最低宿主与打包工具，不能仅凭宿主版本号推断合同兼容
 管理页入口（开发 HTML 和打包生成的经典脚本 HTML）必须声明 `<meta name="codex-proxy-ui-theme-prefix" content="cp">`，与当前官方 UI v0.3.0 和页面 CSS 的 `--cp-*` 前缀保持一致。CPR v3.37.2 的主题桥接默认使用 `z`，未声明会导致颜色、表格背景及组件主题变量失效；旧宿主忽略该元数据，不需为此升级后端 SDK 或改变最低宿主版本。
 先阅读 [设计合同](docs/design.md)，周期判定与重置语义属于数据安全边界
 
@@ -33,11 +33,11 @@ pnpm --dir frontend build
 
 功能分支向 main 提 PR，检查通过后 squash 合并
 提交使用英文 Conventional Commits，文档使用简体中文
-PR 说明问题、行为、实际验证和未验证部分；页面变动附当前实现的合成数据截图
+PR 说明问题、行为、实际验证和未验证部分
 使用 AI 时披露工具和实际模型型号，未知时如实注明并保持 Draft
 不得上传真实账号、令牌、生产地址和生产截图
 
-页面金额仅格式化显示，不回写预算。日期按浏览器本地时间格式化；跨日和夏令时由展示测试覆盖，提前重置开关的状态持久化仍需隔离宿主验证。
+界面格式、文案与布局等细节不做测试；保留静态检查、构建和业务行为测试，真实宿主联调仍需隔离环境。
 
 ## 打包与发布
 

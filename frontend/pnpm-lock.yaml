@@ -153,10 +153,6 @@ packages:
     peerDependencies:
       vue: '>=3.0.0'
 
-  '@boxicons/vue@1.0.1(vue@3.5.43(typescript@6.0.3))':
-    dependencies:
-      vue: 3.5.43(typescript@6.0.3)
-
   '@cacheable/memory@2.2.0':
     resolution: {integrity: sha512-CTLKqLItRCEixEAewD3/j9DB3/o96gpTPD4eJ1v+DGOlxZRZncRQkGYqqnAGCscYd6RNeXfGeiuCphsPtqyIfQ==}
 
@@ -2096,6 +2092,10 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.29.7
       '@babel/helper-validator-identifier': 7.29.7
+
+  '@boxicons/vue@1.0.1(vue@3.5.43(typescript@6.0.3))':
+    dependencies:
+      vue: 3.5.43(typescript@6.0.3)
 
   '@cacheable/memory@2.2.0':
     dependencies:

@@ -17,6 +17,9 @@ struct Storage {
     state: State,
     version: u64,
     resets: Vec<String>,
+    activations: Vec<String>,
+    fail_activation: bool,
+    hang_activation: bool,
     refreshes: usize,
     time: i64,
     reset_at: i64,
@@ -99,6 +102,21 @@ impl Host for Fake {
             weekly_resets_at_ms: Some(WEEK),
         })
     }
+    async fn activate(&self, account: &str) -> Result<(), PluginFault> {
+        let (hang, fail) = {
+            let mut s = self.0.lock().unwrap();
+            s.activations.push(account.into());
+            (s.hang_activation, s.fail_activation)
+        };
+        if hang {
+            std::future::pending::<()>().await;
+        }
+        if fail {
+            Err(fault("synthetic private upstream error"))
+        } else {
+            Ok(())
+        }
+    }
     async fn reset(&self, key: &str) -> Result<(), PluginFault> {
         let hang = self.0.lock().unwrap().hang_reset;
         if hang {
@@ -138,7 +156,7 @@ async fn shared_refresh_and_partial_unknown_do_not_repeat_success() {
         .check("account-a", WEEK + 1000)
         .await
         .unwrap();
-    assert_eq!(h.0.lock().unwrap().refreshes, before + 1);
+    assert_eq!(h.0.lock().unwrap().refreshes, before + 2);
     assert_eq!(h.0.lock().unwrap().resets, vec!["key-a", "key-b"]);
     Engine::load(&h)
         .await
@@ -201,28 +219,6 @@ async fn failed_intent_write_does_not_call_reset() {
             .is_err()
     );
     assert!(h.0.lock().unwrap().resets.is_empty());
-}
-#[tokio::test]
-async fn early_switch_skips_reset_without_manual_processing() {
-    let h = Fake::new();
-    setup(&h).await;
-    {
-        let mut storage = h.0.lock().unwrap();
-        storage.state.early_auto = false;
-        storage.time = 2000000;
-        storage.reset_at = WEEK + 1500000;
-    }
-    Engine::load(&h)
-        .await
-        .unwrap()
-        .check("account-a", 2000000)
-        .await
-        .unwrap();
-    let storage = h.0.lock().unwrap();
-    assert!(storage.resets.is_empty());
-    assert!(storage.state.links["key-a"].pending.is_none());
-    assert!(storage.state.links["key-b"].pending.is_none());
-    assert_eq!(storage.state.links["key-a"].baseline.reset, WEEK + 1500000);
 }
 
 #[tokio::test]
@@ -363,7 +359,7 @@ async fn budget_failure_leaves_other_keys_progressing_and_retries_only_unclaimed
     assert_eq!(h.0.lock().unwrap().resets, vec!["key-b", "key-a"]);
 }
 #[tokio::test]
-async fn early_auto_is_enabled_by_default_and_unknown_retry_requires_acknowledgement() {
+async fn early_reset_is_automatic_and_unknown_retry_requires_acknowledgement() {
     let h = Fake::new();
     setup(&h).await;
     {
@@ -426,30 +422,6 @@ async fn prolonged_outage_discards_queued_cycle_before_any_reset() {
         h.0.lock().unwrap().state.links["key-a"].baseline.reset,
         WEEK * 4
     );
-}
-
-#[tokio::test]
-async fn early_auto_toggle_preserves_pending_reset_state() {
-    let h = Fake::new();
-    setup(&h).await;
-    next(&h);
-    h.0.lock().unwrap().lost_response = Some("key-a".into());
-    Engine::load(&h)
-        .await
-        .unwrap()
-        .check("account-a", WEEK + 1000)
-        .await
-        .unwrap();
-    let before = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
-    let mut engine = Engine::load(&h).await.unwrap();
-    engine.state.early_auto = false;
-    engine.save().await.unwrap();
-    let after = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
-    assert_eq!(after["links"], before["links"]);
-    assert_eq!(after["accounts"], before["accounts"]);
-    assert_eq!(after["early_auto"], false);
-    assert!(after.get("display_timezone").is_none());
-    assert_eq!(h.0.lock().unwrap().resets.len(), 2);
 }
 
 #[tokio::test]
@@ -734,90 +706,6 @@ async fn unknown_reset_cannot_be_cleared_by_pause_and_resume() {
 }
 
 #[tokio::test]
-async fn per_key_early_reset_can_be_disabled_independently() {
-    let h = Fake::new();
-    setup(&h).await;
-    let mut engine = Engine::load(&h).await.unwrap();
-    engine.set_early_auto("key-a", false).await.unwrap();
-    assert!(!h.0.lock().unwrap().state.links["key-a"].early_reset_enabled(true));
-    assert!(h.0.lock().unwrap().state.links["key-b"].early_reset_enabled(true));
-    {
-        let mut storage = h.0.lock().unwrap();
-        storage.time = 2_000_000;
-        storage.reset_at = WEEK + 1_500_000;
-    }
-    Engine::load(&h)
-        .await
-        .unwrap()
-        .check("account-a", 2_000_000)
-        .await
-        .unwrap();
-    let storage = h.0.lock().unwrap();
-    assert_eq!(storage.resets, ["key-b"]);
-    assert_eq!(
-        storage.state.links["key-a"].baseline.reset,
-        WEEK + 1_500_000
-    );
-    assert!(storage.state.links["key-a"].pending.is_none());
-    assert!(storage.state.links["key-b"].pending.is_none());
-}
-
-#[tokio::test]
-async fn per_key_switch_does_not_clear_unknown_reset_or_change_other_links() {
-    let h = Fake::new();
-    setup(&h).await;
-    next(&h);
-    h.0.lock().unwrap().lost_response = Some("key-a".into());
-    Engine::load(&h)
-        .await
-        .unwrap()
-        .check("account-a", WEEK + 1000)
-        .await
-        .unwrap();
-    let before = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
-    Engine::load(&h)
-        .await
-        .unwrap()
-        .set_early_auto("key-a", false)
-        .await
-        .unwrap();
-    let after = serde_json::to_value(&h.0.lock().unwrap().state).unwrap();
-    assert_eq!(after["accounts"], before["accounts"]);
-    assert_eq!(after["links"]["key-b"], before["links"]["key-b"]);
-    assert_eq!(
-        after["links"]["key-a"]["pending"],
-        before["links"]["key-a"]["pending"]
-    );
-    assert_eq!(after["links"]["key-a"]["early_auto"], false);
-    assert_eq!(h.0.lock().unwrap().resets.len(), 2);
-}
-
-#[test]
-fn old_state_preserves_global_early_reset_default() {
-    let old = serde_json::json!({
-        "early_auto": false,
-        "links": {
-            "key-a": {
-                "key_id": "key-a",
-                "account_id": "account-a",
-                "baseline": {"observed": 1, "reset": 604800000, "used": null},
-                "paused": false,
-                "pending": null,
-                "events": [],
-                "retry_at": 0,
-                "phase": {"kind": "tracking"}
-            }
-        },
-        "accounts": {}
-    });
-    let state: State = serde_json::from_value(old).unwrap();
-    assert!(!state.links["key-a"].early_reset_enabled(state.early_auto));
-    assert!(state.links["key-a"].early_auto.is_none());
-    let restored: State = serde_json::from_value(serde_json::to_value(state).unwrap()).unwrap();
-    assert!(!restored.links["key-a"].early_reset_enabled(restored.early_auto));
-}
-
-#[tokio::test]
 async fn stale_resume_cannot_roll_back_a_completed_cycle() {
     let h = Fake::new();
     setup(&h).await;
@@ -976,7 +864,6 @@ async fn association_creation_time_survives_changes_and_restarts() {
     e.action("key-a", "pause", false, 2000000).await.unwrap();
     h.0.lock().unwrap().time = 3000000;
     e.action("key-a", "resume", false, 3000000).await.unwrap();
-    e.set_early_auto("key-a", false).await.unwrap();
     let e = Engine::load(&h).await.unwrap();
     assert_eq!(e.state.links["key-a"].created_at, Some(1234567));
     let value = serde_json::to_value(&e.state).unwrap();
@@ -1007,4 +894,188 @@ async fn legacy_association_creation_time_remains_unknown() {
     h.0.lock().unwrap().time = 5000000;
     e.add("key-a", "account-a", 5000000).await.unwrap();
     assert_eq!(e.state.links["key-a"].created_at, Some(5000000));
+}
+
+#[tokio::test]
+async fn activation_is_shared_durable_and_not_retried_after_failure() {
+    let h = Fake::new();
+    setup(&h).await;
+    next(&h);
+    h.0.lock().unwrap().fail_activation = true;
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .check("account-a", WEEK + 1000)
+        .await
+        .unwrap();
+    assert_eq!(h.0.lock().unwrap().activations, ["account-a"]);
+    assert_eq!(h.0.lock().unwrap().resets.len(), 2);
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .check("account-a", WEEK + 2000)
+        .await
+        .unwrap();
+    assert_eq!(h.0.lock().unwrap().activations.len(), 1);
+    let state = serde_json::to_string(&h.0.lock().unwrap().state).unwrap();
+    assert!(!state.contains("synthetic private"));
+}
+
+#[tokio::test]
+async fn unknown_resets_and_failed_completion_writes_do_not_activate() {
+    let h = Fake::new();
+    setup(&h).await;
+    next(&h);
+    h.0.lock().unwrap().state.links.remove("key-b");
+    h.0.lock().unwrap().lost_response = Some("key-a".into());
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .check("account-a", WEEK + 1000)
+        .await
+        .unwrap();
+    assert!(h.0.lock().unwrap().activations.is_empty());
+    let h = Fake::new();
+    setup(&h).await;
+    next(&h);
+    h.0.lock().unwrap().fail_save_at = Some(5);
+    assert!(
+        Engine::load(&h)
+            .await
+            .unwrap()
+            .check("account-a", WEEK + 1000)
+            .await
+            .is_err()
+    );
+    assert!(h.0.lock().unwrap().activations.is_empty());
+}
+
+#[tokio::test]
+async fn activation_intent_survives_cancellation_and_prevents_replay() {
+    let h = Fake::new();
+    setup(&h).await;
+    next(&h);
+    h.0.lock().unwrap().hang_activation = true;
+    let mut engine = Engine::load(&h).await.unwrap();
+    assert!(
+        tokio::time::timeout(
+            std::time::Duration::from_millis(10),
+            engine.check("account-a", WEEK + 1000)
+        )
+        .await
+        .is_err()
+    );
+    drop(engine);
+    h.0.lock().unwrap().hang_activation = false;
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .drain(WEEK + 2000)
+        .await
+        .unwrap();
+    assert_eq!(h.0.lock().unwrap().activations, ["account-a"]);
+    assert_eq!(h.0.lock().unwrap().resets, ["key-a", "key-b"]);
+}
+
+#[tokio::test]
+async fn activation_intent_write_failure_never_dispatches() {
+    let h = Fake::new();
+    setup(&h).await;
+    next(&h);
+    h.0.lock().unwrap().fail_save_at = Some(6);
+    assert!(
+        Engine::load(&h)
+            .await
+            .unwrap()
+            .check("account-a", WEEK + 1000)
+            .await
+            .is_err()
+    );
+    assert!(h.0.lock().unwrap().activations.is_empty());
+    assert_eq!(h.0.lock().unwrap().resets, ["key-a"]);
+    h.0.lock().unwrap().fail_save_at = None;
+    h.0.lock().unwrap().state.links.remove("key-b");
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .drain(WEEK + 2000)
+        .await
+        .unwrap();
+    assert_eq!(h.0.lock().unwrap().activations, ["account-a"]);
+    assert_eq!(h.0.lock().unwrap().resets, ["key-a"]);
+}
+
+#[tokio::test]
+async fn lost_activation_completion_write_does_not_replay() {
+    let h = Fake::new();
+    setup(&h).await;
+    next(&h);
+    h.0.lock().unwrap().fail_save_at = Some(7);
+    assert!(
+        Engine::load(&h)
+            .await
+            .unwrap()
+            .check("account-a", WEEK + 1000)
+            .await
+            .is_err()
+    );
+    h.0.lock().unwrap().fail_save_at = None;
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .drain(WEEK + 2000)
+        .await
+        .unwrap();
+    assert_eq!(h.0.lock().unwrap().activations, ["account-a"]);
+    assert_eq!(h.0.lock().unwrap().resets, ["key-a", "key-b"]);
+}
+
+#[tokio::test]
+async fn activation_settlement_does_not_borrow_a_link_candidate() {
+    use key_reset_follow::{
+        cycle::Sample,
+        model::{Activation, ActivationOutcome, Phase},
+    };
+    let h = Fake::new();
+    setup(&h).await;
+    {
+        let mut s = h.0.lock().unwrap();
+        s.time = 2_000_000;
+        s.reset_at = WEEK + 1_500_000;
+        s.state.accounts.get_mut("account-a").unwrap().activation = Some(Activation {
+            cycle: Sample {
+                observed: 1_000_000,
+                reset: WEEK,
+                used: Some(10.0),
+            },
+            anchor: None,
+            candidate: None,
+            outcome: ActivationOutcome::Succeeded,
+        });
+        s.state.links.get_mut("key-a").unwrap().phase = Phase::Settling {
+            candidate: Some(Sample {
+                observed: 1_700_000,
+                reset: WEEK + 1_500_000,
+                used: Some(0.0),
+            }),
+        };
+        s.state.links.get_mut("key-b").unwrap().paused = true;
+    }
+    Engine::load(&h)
+        .await
+        .unwrap()
+        .check("account-a", 2_000_000)
+        .await
+        .unwrap();
+    let s = h.0.lock().unwrap();
+    assert!(matches!(s.state.links["key-a"].phase, Phase::Tracking));
+    assert!(
+        s.state.accounts["account-a"]
+            .activation
+            .as_ref()
+            .unwrap()
+            .anchor
+            .is_none()
+    );
+    assert!(s.activations.is_empty());
 }

@@ -2,7 +2,7 @@
 import type { Link, Snapshot } from './api/modules/follow'
 import type { DeleteTarget } from './bulk'
 import type { ListSort, SortKey } from './list'
-import { BaseButton, BaseCheckbox, BaseIconButton, BaseInput, BaseModal, BaseSelect, BaseSwitch, BaseTablePagination, BaseTag } from '@codex-proxy/ui'
+import { BaseButton, BaseCheckbox, BaseIconButton, BaseInput, BaseModal, BaseSelect, BaseTablePagination, BaseTag } from '@codex-proxy/ui'
 import { Plus, Power, PowerOff, Search, Trash2, Triangle } from '@lucide/vue'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { command, load } from './api/modules/follow'
@@ -121,33 +121,6 @@ watch([search, sort, pageSize], () => {
 watch(() => paged.value.currentPage, (value) => {
   page.value = value
 })
-const earlyResetEnabled = (l: Link) => l.early_auto ?? data.value?.state.early_auto ?? true
-async function setEarlyAuto(l: Link, enabled: boolean) {
-  if (busy.value || !data.value || earlyResetEnabled(l) === enabled)
-    return
-  busy.value = true
-  error.value = ''
-  let committed = false
-  try {
-    await command({ action: 'early_auto', key_id: l.key_id, account_id: l.account_id, enabled })
-    committed = true
-    // 单个关联设置成功即更新对应开关；读取失败时不误改其他密钥。
-    const current = data.value?.state.links[l.key_id]
-    if (current?.account_id === l.account_id)
-      current.early_auto = enabled
-    data.value = await load()
-  }
-  catch (e) {
-    const message = (e as Error).message
-    // 版本冲突或请求失败后以服务端状态为准，避免 UI 显示未保存的选项。
-    try {
-      data.value = await load()
-    }
-    catch { /* 保留请求错误，用户可通过错误提示重试。 */ }
-    error.value = committed ? `开关已保存，但页面刷新失败：${message}` : message
-  }
-  finally { busy.value = false }
-}
 async function refresh() {
   try {
     data.value = await load()
@@ -253,7 +226,7 @@ onUnmounted(() => clearInterval(timer))
                 </span>
               </button>
             </th>
-            <th>提前重置</th><th>操作</th>
+            <th>操作</th>
           </tr>
         </thead>
         <tbody>
@@ -287,14 +260,6 @@ onUnmounted(() => clearInterval(timer))
             <td data-label="重置时间" class="reset-time">
               <span v-if="resetAt(l) != null">{{ displayResetDate(resetAt(l)) }}</span>
               <span v-else class="muted">-</span>
-            </td>
-            <td data-label="提前重置" class="early-reset-cell">
-              <BaseSwitch
-                :model-value="earlyResetEnabled(l)"
-                :label="`${keyName(l)}提前重置`"
-                :disabled="busy || !data"
-                @update:model-value="enabled => setEarlyAuto(l, enabled)"
-              />
             </td>
             <td class="row-actions" data-label="操作">
               <div class="tools">

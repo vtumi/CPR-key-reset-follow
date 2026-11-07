@@ -7,12 +7,10 @@ export interface Link {
   created_at?: number | null
   baseline: { reset: number }
   paused: boolean
-  early_auto: boolean | null
   pending: { kind: 'confirm' | 'ready' | 'unknown' | 'changed' } | null
 }
 export interface Snapshot {
   state: {
-    early_auto: boolean
     links: Record<string, Link>
     accounts: Record<string, { failure_since: number | null }>
   }
