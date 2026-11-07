@@ -12,6 +12,24 @@ import ProviderIconGroup from './components/ProviderIconGroup.vue'
 import { displayResetDate, expectedKeyReset, money, subscriptionLabel } from './display'
 import { filterAndSort, paginate } from './list'
 
+const tableScroll = ref<HTMLDivElement>()
+const tableElement = ref<HTMLTableElement>()
+const canScrollRight = ref(false)
+function updateScrollEdge() {
+  const element = tableScroll.value
+  canScrollRight.value = !!element && element.scrollLeft < element.scrollWidth - element.clientWidth - 1
+}
+// 跟随宿主表格，仅在右侧仍有被遮挡内容时显示悬浮列阴影
+watch([tableScroll, tableElement], ([container, table], _, onCleanup) => {
+  updateScrollEdge()
+  if (!container || !table)
+    return
+  const observer = new ResizeObserver(updateScrollEdge)
+  observer.observe(container)
+  observer.observe(table)
+  onCleanup(() => observer.disconnect())
+}, { flush: 'post' })
+
 const data = ref<Snapshot>()
 const search = ref('')
 const sort = ref<ListSort>()
@@ -200,8 +218,8 @@ onUnmounted(() => clearInterval(timer))
     <div v-else-if="data && !filteredRows.length" class="empty" role="status">
       暂无关联
     </div>
-    <div v-else-if="data" class="table-scroll">
-      <table>
+    <div v-else-if="data" ref="tableScroll" class="table-scroll" :class="{ 'can-scroll-right': canScrollRight }" @scroll.passive="updateScrollEdge">
+      <table ref="tableElement">
         <thead>
           <tr>
             <th class="selection-cell">
@@ -226,7 +244,9 @@ onUnmounted(() => clearInterval(timer))
                 </span>
               </button>
             </th>
-            <th>操作</th>
+            <th class="row-actions">
+              操作
+            </th>
           </tr>
         </thead>
         <tbody>

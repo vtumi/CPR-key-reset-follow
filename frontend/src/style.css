@@ -31,6 +31,13 @@ th:first-child { border-radius: 7px 0 0 7px; } th:last-child { border-radius: 0 
 .identity strong { font-weight: 600; } .numeric { font-variant-numeric: tabular-nums; white-space: nowrap; }
 .amount { font-weight: 600; } .reset-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .row-actions { width: 88px; min-width: 88px; padding-right: 0; } .row-actions .tools { justify-content: flex-end; gap: 6px; }
+/* 与固定宿主 ZTable 的 actions 列一致，操作列吸附右侧并按滚动余量显示阴影 */
+@media (min-width: 781px) {
+  .row-actions { position: sticky; right: 0; z-index: 20; padding-right: 14px; min-width: 104px; }
+  thead .row-actions { z-index: 40; }
+  tbody .row-actions { background-image: linear-gradient(var(--row-bg), var(--row-bg)); background-color: var(--cp-color-bg-container); }
+  .can-scroll-right .row-actions { box-shadow: -8px 0 14px -14px var(--cp-color-shadow); }
+}
 .status { gap: 7px; white-space: nowrap; }
 .error { color: var(--cp-color-error-text); padding: 8px 0; overflow-wrap: anywhere; }
 .empty { flex: 1; padding: 72px 0; text-align: center; color: var(--cp-color-text-secondary); }
