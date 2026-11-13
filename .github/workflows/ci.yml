@@ -1,0 +1,90 @@
+name: CI
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            artifact: linux-x86_64
+          - runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            artifact: linux-aarch64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.99.1
+        with:
+          components: rustfmt, clippy
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.6.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+      - run: pnpm --dir frontend install --no-frozen-lockfile
+      - uses: actions/upload-artifact@v4
+        with:
+          name: refreshed-frontend-lock-${{ matrix.artifact }}
+          path: frontend/pnpm-lock.yaml
+      - run: pnpm --dir frontend lint
+      - run: pnpm --dir frontend test
+      - run: pnpm --dir frontend build
+      - run: cargo build --release --locked
+      - name: Build CPR Plugin Packaging CLI
+        run: |
+          git init /tmp/cpr-sdk
+          git -C /tmp/cpr-sdk remote add origin https://github.com/zyycn/codex-proxy-rs.git
+          git -C /tmp/cpr-sdk fetch --depth 1 origin ba3baddbda7293d1d76ea066dd5e42298618c15a
+          git -C /tmp/cpr-sdk checkout --detach FETCH_HEAD
+          cargo build --manifest-path /tmp/cpr-sdk/backend/Cargo.toml -p codex-proxy-plugin-cli --locked
+      - run: /tmp/cpr-sdk/backend/target/debug/cpr-plugin package --manifest plugin.json --binary target/release/key-reset-follow --target ${{ matrix.target }} --resource-map web=frontend/dist --output-dir dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/*
+  check:
+    if: always()
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - run: test "$BUILD_RESULT" = success
+        env:
+          BUILD_RESULT: ${{ needs.build.result }}
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: check
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: linux-*
+          merge-multiple: true
+          path: dist
+      - name: Verify and Upload Release Assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          test "$RELEASE_TAG" = "v$(jq -r .version plugin.json)"
+          # 先在 GitHub 手工创建与当前 Tag 对应的 Release；此流程只上传附件。
+          gh release view "$RELEASE_TAG" >/dev/null
+          for target in x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu; do
+            archive="tumi.key-reset-follow-${RELEASE_TAG#v}-${target}.tar.gz"
+            test -s "dist/$archive"
+            test -s "dist/$archive.sha256"
+            (cd dist && sha256sum --check "$archive.sha256")
+          done
+          gh release upload "$RELEASE_TAG" dist/* --clobber

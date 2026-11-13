@@ -1,0 +1,40 @@
+{
+  "manifestVersion": 2,
+  "publisher": "tumi",
+  "name": "key-reset-follow",
+  "displayName": "跟随重置",
+  "version": "1.0.0",
+  "author": "tumi",
+  "description": "密钥额度跟随账号重置",
+  "license": "Apache-2.0",
+  "engines": {
+    "codex-proxy-rs": ">=3.41.2"
+  },
+  "runtime": "trustedProcess",
+  "main": "bin/key-reset-follow",
+  "contributes": {
+    "management": {
+      "version": 2
+    },
+    "maintenance": {
+      "version": 1
+    }
+  },
+  "resources": {
+    "web/index.html": "text/html",
+    "web/app.js": "text/javascript",
+    "web/app.css": "text/css"
+  },
+  "state": [
+    {
+      "namespace": "follow",
+      "schemaVersion": 1,
+      "schema": {
+        "type": "object"
+      },
+      "maximumRecords": 1,
+      "maximumBytes": 262144,
+      "maximumValueBytes": 262144
+    }
+  ]
+}
